@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     url: "https://xegents.com/",
     images: [
       {
-        url: "/xegents-logo.png",
+        url: "/icon.jpg",
         width: 1200,
         height: 630,
         alt: "Xegents Logo",
@@ -36,11 +36,11 @@ export const metadata: Metadata = {
     title: "Your AI Transformation Partner | Xegents",
     description:
       "Your team's already doing the work. AI just does it faster and cheaper. We identify where AI creates immediate ROI, then build those systems for you.",
-    images: ["/xegents-logo.png"],
+    images: ["/icon.jpg"],
   },
   icons: {
-    icon: "/xegents-logo.png",
-    apple: "/xegents-logo.png",
+    icon: "icon.jpg",
+    apple: "icon.jpg",
   },
   robots: {
     index: true,
@@ -66,7 +66,7 @@ export default function RootLayout({
               "@type": "Organization",
               name: "Xegents",
               url: "https://xegents.com/",
-              logo: "/xegents-logo.png",
+              logo: "/icon.jpg",
               description:
                 "We help companies identify high-ROI AI opportunities, then build AI systems that save time, cut costs, and increase output.",
               email: "business.zainsaeed@gmail.com",
@@ -98,7 +98,7 @@ export default function RootLayout({
               brand: {
                 "@type": "Brand",
                 name: "Xegents",
-                logo: "/xegents-logo.png",
+                logo: "/icon.jpg",
               },
             }),
           }}

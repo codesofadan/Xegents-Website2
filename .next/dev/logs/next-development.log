@@ -1,0 +1,58 @@
+[00:00:03.048] Server  LOG     
+[00:00:03.049] Server  LOG       We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+[00:00:03.051] Server  LOG       The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+[00:00:03.052] Server  LOG       	- include was updated to add '.next/dev/types/**/*.ts'
+[00:00:03.053] Server  LOG     
+[00:00:03.054] Server  LOG       The following mandatory changes were made to your tsconfig.json:
+
+[00:00:03.056] Server  LOG       	- jsx was set to react-jsx (next.js uses the React automatic runtime)
+[00:00:03.057] Server  LOG     
+[00:00:04.152] Server  LOG     ✓ Ready in 2.9s
+[00:00:28.746] Server  LOG     ○ Compiling / ...
+[00:00:37.690] Server  WARN    ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+[00:00:39.811] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:40.481] Browser ERROR   uncaughtError: Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <LoadingBoundary name="/" loading={null}>
+      <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
+        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="/Desktop/x...">
+                  <SegmentTrieNode>
+                  <ClientPageRoot Component={function Home} serverProvidedParams={{...}}>
+                    <Home params={Promise} searchParams={Promise}>
+                      <main className="w-full bg-...">
+                        <Header>
+                        <Hero>
+                          <AnimatedStars>
+                            <div className="fixed inse...">
+                              <style>
++                               {"...nslateX(4.583946228582416px); opacity: 1; }\n        }\n        @keyframes fade..."}
+-                               {"...nslateX(-3.288974724330962px); opacity: 1; }\n        }\n        @keyframes fad..."}
+                              ...
+                          ...
+                        ...
+                ...
+              ...
+
+[00:00:41.592] Browser LOG     %c[Vercel Web Analytics]%c Debug mode is enabled by default in development. No requests will be sent to the server. color: rgb(120, 120, 120) color: inherit
+[00:00:41.592] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
+[00:00:41.592] Browser LOG     %c[Vercel Web Analytics]%c Running queued event color: rgb(120, 120, 120) color: inherit pageview {"path":"/","route":"/"}
+[00:00:41.592] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","r":"","sdkn":"@vercel/analytics/next","sdkv":"1.6.1","sv":"0.1.3","ts":1766136496167}
+[00:00:41.592] Browser LOG     %c[Vercel Web Analytics]%c [pageview] http://localhost:3000/ color: rgb(120, 120, 120) color: inherit {"dp":"/","o":"http://localhost:3000/","sdkn":"@vercel/analytics/next","sdkv":"1.6.1","sv":"0.1.3","ts":1766136496167}
+[00:00:50.961] Server  LOG     ✓ Finished writing to filesystem cache in 11.8s
+[00:01:05.458] Server  LOG     ✓ Finished writing to filesystem cache in 13.0s
