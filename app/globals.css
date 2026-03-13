@@ -4,40 +4,38 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Dark theme with electric purple and neon colors */
-  --background: oklch(0.08 0.02 280);
-  --foreground: oklch(0.98 0.02 280);
-  --card: oklch(0.12 0.03 280);
-  --card-foreground: oklch(0.95 0.02 280);
+  /* Refined dark palette — charcoal + warm neutral accent */
+  --background: oklch(0.09 0.005 260);
+  --foreground: oklch(0.95 0.005 260);
+  --card: oklch(0.12 0.006 260);
+  --card-foreground: oklch(0.93 0.005 260);
 
-  /* Electric Purple Primary */
-  --primary: oklch(0.55 0.25 280);
-  --primary-foreground: oklch(0.08 0.02 280);
+  /* Warm off-white primary */
+  --primary: oklch(0.92 0.02 80);
+  --primary-foreground: oklch(0.1 0.005 260);
 
-  /* Bright Cyan Accent */
-  --secondary: oklch(0.6 0.25 220);
-  --secondary-foreground: oklch(0.08 0.02 280);
+  /* Muted secondary */
+  --secondary: oklch(0.2 0.008 260);
+  --secondary-foreground: oklch(0.9 0.005 260);
 
-  /* Neon Purple Accent */
-  --accent: oklch(0.65 0.28 290);
-  --accent-foreground: oklch(0.08 0.02 280);
+  /* Subtle warm accent */
+  --accent: oklch(0.75 0.12 65);
+  --accent-foreground: oklch(0.1 0.005 260);
 
-  --muted: oklch(0.15 0.02 280);
-  --muted-foreground: oklch(0.6 0.05 280);
-  --border: oklch(0.2 0.04 280);
-  --input: oklch(0.12 0.03 280);
-  --ring: oklch(0.65 0.28 290);
-  --glass-bg: rgba(15, 10, 40, 0.7);
-  --glass-border: rgba(147, 51, 234, 0.2);
+  --muted: oklch(0.14 0.006 260);
+  --muted-foreground: oklch(0.55 0.01 260);
+  --border: oklch(0.18 0.008 260);
+  --input: oklch(0.14 0.006 260);
+  --ring: oklch(0.75 0.12 65);
 
-  /* Chart colors in purple/neon theme */
-  --chart-1: oklch(0.65 0.28 290);
-  --chart-2: oklch(0.55 0.25 280);
-  --chart-3: oklch(0.6 0.25 220);
-  --chart-4: oklch(0.5 0.22 270);
-  --chart-5: oklch(0.7 0.25 300);
+  /* Chart colors — muted, editorial palette */
+  --chart-1: oklch(0.75 0.12 65);
+  --chart-2: oklch(0.65 0.08 200);
+  --chart-3: oklch(0.60 0.1 150);
+  --chart-4: oklch(0.55 0.06 280);
+  --chart-5: oklch(0.70 0.08 30);
 
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -84,7 +82,7 @@
 }
 
 @theme inline {
-  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
+  --font-sans: var(--font-sans, 'Space Grotesk', system-ui, sans-serif);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -135,53 +133,31 @@
 
   body {
     @apply bg-background text-foreground;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer components {
-  /* Glassmorphism Card */
+  /* Clean minimal card — no glassmorphism */
   .glass-card {
-    @apply backdrop-blur-md bg-card/60 border border-accent/20 rounded-2xl;
+    @apply bg-card border border-border rounded-xl;
   }
 
-  /* Premium Gradient Text */
+  /* Subtle accent text — single color, not rainbow gradient */
   .gradient-text {
-    @apply bg-gradient-to-r from-accent via-primary to-secondary bg-clip-text text-transparent;
+    color: var(--accent);
   }
 
-  /* Glow Effect */
+  /* Soft shadow — replaces neon glow */
   .glow-effect {
-    @apply shadow-lg shadow-accent/30;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  /* Motion gradient background */
-  @keyframes gradient-shift {
-    0%,
-    100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-  }
-
-  .gradient-bg-motion {
-    background-image: linear-gradient(
-      -45deg,
-      rgba(147, 51, 234, 0.1),
-      rgba(88, 28, 224, 0.1),
-      rgba(59, 130, 246, 0.1),
-      rgba(147, 51, 234, 0.1)
-    );
-    background-size: 400% 400%;
-    animation: gradient-shift 15s ease infinite;
-  }
-
-  /* Smooth scroll-triggered animations */
+  /* Smooth scroll-triggered animations — kept for UX */
   @keyframes slideInUp {
     from {
       opacity: 0;
-      transform: translateY(40px);
+      transform: translateY(24px);
     }
     to {
       opacity: 1;
@@ -192,7 +168,7 @@
   @keyframes slideInLeft {
     from {
       opacity: 0;
-      transform: translateX(-40px);
+      transform: translateX(-24px);
     }
     to {
       opacity: 1;
@@ -203,7 +179,7 @@
   @keyframes slideInRight {
     from {
       opacity: 0;
-      transform: translateX(40px);
+      transform: translateX(24px);
     }
     to {
       opacity: 1;
@@ -214,7 +190,7 @@
   @keyframes scaleIn {
     from {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.97);
     }
     to {
       opacity: 1;
@@ -228,22 +204,21 @@
   }
 
   .scroll-animate.in-view {
-    animation: slideInUp 0.8s ease-out 0.1s;
+    animation: slideInUp 0.7s ease-out 0.1s;
   }
 
   .scroll-animate.in-view.delay-1 {
-    animation-delay: 0.2s;
+    animation-delay: 0.15s;
   }
 
   .scroll-animate.in-view.delay-2 {
-    animation-delay: 0.3s;
+    animation-delay: 0.25s;
   }
 
   .scroll-animate.in-view.delay-3 {
-    animation-delay: 0.4s;
+    animation-delay: 0.35s;
   }
 
-  /* Smooth Animation */
   @keyframes shimmer {
     0%,
     100% {
@@ -256,47 +231,5 @@
 
   .shimmer {
     animation: shimmer 2s infinite;
-  }
-
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-
-  .float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  @keyframes pulse-glow {
-    0%,
-    100% {
-      box-shadow: 0 0 20px rgba(147, 51, 234, 0.4), 0 0 40px rgba(88, 28, 224, 0.2);
-    }
-    50% {
-      box-shadow: 0 0 40px rgba(147, 51, 234, 0.6), 0 0 80px rgba(88, 28, 224, 0.3);
-    }
-  }
-
-  .pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  @keyframes neon-border {
-    0%,
-    100% {
-      box-shadow: 0 0 10px rgba(147, 51, 234, 0.3), inset 0 0 10px rgba(147, 51, 234, 0.1);
-    }
-    50% {
-      box-shadow: 0 0 20px rgba(147, 51, 234, 0.6), inset 0 0 20px rgba(147, 51, 234, 0.2);
-    }
-  }
-
-  .neon-border {
-    animation: neon-border 3s ease-in-out infinite;
   }
 }

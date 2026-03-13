@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useRef, useEffect, useState } from "react"
 
 function DocumentIcon() {
   return (
-    <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
       <polyline points="14 2 14 8 20 8"></polyline>
       <line x1="12" y1="11" x2="12" y2="17"></line>
@@ -15,7 +15,7 @@ function DocumentIcon() {
 
 function TrendingIcon() {
   return (
-    <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <polyline points="23 6 13.5 15.5 8.5 10.5 1 17"></polyline>
       <polyline points="17 6 23 6 23 12"></polyline>
     </svg>
@@ -24,7 +24,7 @@ function TrendingIcon() {
 
 function MessageIcon() {
   return (
-    <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
   )
@@ -32,15 +32,16 @@ function MessageIcon() {
 
 function SettingsIcon() {
   return (
-    <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <circle cx="12" cy="12" r="3"></circle>
       <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m3.08 3.08l4.24 4.24M1 12h6m6 0h6m-1.78 7.78l-4.24-4.24m-3.08-3.08l-4.24-4.24"></path>
     </svg>
   )
 }
 
-const caseStudies = {
-  "real-estate": {
+const caseStudies = [
+  {
+    key: "real-estate",
     industry: "Real Estate",
     company: "Real Estate Agencies",
     reality:
@@ -69,7 +70,8 @@ const caseStudies = {
       { label: "Onboarding Time Saved", value: "18h/week" },
     ],
   },
-  healthcare: {
+  {
+    key: "healthcare",
     industry: "Healthcare",
     company: "Healthcare Organizations",
     reality:
@@ -98,13 +100,11 @@ const caseStudies = {
       { label: "Staff Efficiency", value: "+38%" },
     ],
   },
-}
+]
 
 export function CaseStudies() {
-  const [selectedCase, setSelectedCase] = useState<"real-estate" | "healthcare">("real-estate")
   const [inView, setInView] = useState(false)
   const sectionRef = useRef<HTMLDivElement>(null)
-  const caseData = caseStudies[selectedCase]
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -124,144 +124,87 @@ export function CaseStudies() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-16 sm:py-24 px-4 sm:px-6 bg-muted/40" id="case-studies-section">
+    <section ref={sectionRef} className="py-20 sm:py-28 px-4 sm:px-6 border-t border-border" id="case-studies-section">
       <div className="max-w-7xl mx-auto">
         <div
-          className={`text-center mb-12 sm:mb-16 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+          className={`text-center mb-14 sm:mb-20 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-balance text-foreground">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance text-foreground">
             <span className="gradient-text">Real Results</span> From Real Companies
           </h2>
-          <p className="text-xs sm:text-lg lg:text-xl text-foreground max-w-2xl mx-auto opacity-100">
-            See how organizations across industries unlocks significant operational gains.
+          <p className="text-sm sm:text-lg text-foreground/70 max-w-2xl mx-auto">
+            See how organizations across industries unlock significant operational gains.
           </p>
         </div>
 
-        <div
-          className={`flex gap-3 sm:gap-4 justify-center mb-8 sm:mb-12 flex-wrap transition-all duration-700 ${inView ? "opacity-100" : "opacity-0"}`}
-          style={{ transitionDelay: inView ? "0.2s" : "0s" }}
-        >
-          {Object.entries(caseStudies).map(([key, value]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedCase(key as any)}
-              className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold text-xs sm:text-base transition-all transform hover:scale-105 ${
-                selectedCase === key
-                  ? "bg-gradient-to-r from-primary to-accent text-foreground shadow-lg shadow-accent/40 opacity-100"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80 opacity-90"
-              }`}
+        {/* Both case studies displayed */}
+        <div className="grid lg:grid-cols-2 gap-6 sm:gap-8">
+          {caseStudies.map((caseData, caseIdx) => (
+            <div
+              key={caseData.key}
+              className={`glass-card p-6 sm:p-8 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              style={{ transitionDelay: inView ? `${caseIdx * 0.15}s` : "0s" }}
             >
-              {value.industry}
-            </button>
+              {/* Header */}
+              <div className="mb-6 space-y-1 border-b border-border pb-5">
+                <p className="text-xs font-medium text-accent uppercase tracking-wider">{caseData.industry}</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground">{caseData.company}</h3>
+              </div>
+
+              {/* Reality Section */}
+              <div className="mb-6 space-y-2">
+                <h4 className="font-semibold text-sm text-red-400 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                  The Reality
+                </h4>
+                <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed">{caseData.reality}</p>
+              </div>
+
+              {/* Solutions Section */}
+              <div className="mb-6 space-y-2">
+                <h4 className="font-semibold text-sm text-green-400 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                  What AI Actually Solves
+                </h4>
+                <div className="grid gap-2">
+                  {caseData.solutions.map((solution) => {
+                    const Icon = solution.icon
+                    return (
+                      <div
+                        key={solution.text}
+                        className="bg-secondary p-3 rounded-lg border border-border"
+                      >
+                        <div className="flex gap-3 items-start">
+                          <div className="w-6 h-6 rounded-md bg-accent/10 flex items-center justify-center flex-shrink-0 text-accent mt-0.5">
+                            <Icon />
+                          </div>
+                          <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed">{solution.text}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Results Section */}
+              <div className="pt-5 border-t border-border">
+                <h4 className="font-semibold text-sm mb-4 text-accent">Typical Impact</h4>
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                  {caseData.results.map((result) => (
+                    <div
+                      key={result.label}
+                      className="text-center p-3 rounded-lg bg-secondary border border-border"
+                    >
+                      <p className="text-[10px] sm:text-xs text-foreground/50 mb-1">{result.label}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-foreground">{result.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-
-        <div
-          key={selectedCase}
-          className={`opacity-animation transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-          style={{ transitionDelay: inView ? "0.3s" : "0s" }}
-        >
-          <div className="glass-card p-6 sm:p-8 lg:p-12 glow-effect max-w-6xl mx-auto transform transition-all hover:shadow-xl hover:shadow-accent/30">
-            {/* Header */}
-            <div className="mb-8 space-y-2 border-b border-accent/30 pb-6 opacity-animation">
-              <h3 className="text-2xl sm:text-4xl font-bold gradient-text">{caseData.company}</h3>
-            </div>
-
-            {/* Reality Section */}
-            <div className="mb-10 space-y-3 opacity-animation">
-              <h4 className="font-bold text-base sm:text-lg text-red-400 flex items-center gap-2">
-                <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                The Reality
-              </h4>
-              <p className="text-xs sm:text-base text-muted-foreground leading-relaxed">{caseData.reality}</p>
-            </div>
-
-            {/* Solutions Section */}
-            <div className="mb-10 space-y-3 opacity-animation">
-              <h4 className="font-bold text-base sm:text-lg text-green-400 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                What AI Actually Solves
-              </h4>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {caseData.solutions.map((solution, idx) => {
-                  const Icon = solution.icon
-                  return (
-                    <div
-                      key={solution.text}
-                      className="bg-muted/30 p-3 sm:p-4 rounded-lg border border-accent/20 hover:border-accent/50 hover:bg-muted/40 transition-all hover:translate-y-[-4px] group cursor-pointer opacity-animation"
-                      style={{
-                        animation: `slideInUp 0.5s ease-out ${idx * 0.1}s both`,
-                      }}
-                    >
-                      <div className="flex gap-3 items-start">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 group-hover:from-primary/50 group-hover:to-accent/50 transition-all">
-                          <Icon />
-                        </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{solution.text}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Results Section */}
-            <div className="pt-8 border-t border-accent/30 opacity-animation">
-              <h4 className="font-bold text-base sm:text-lg mb-6 text-accent">Typical Impact</h4>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {caseData.results.map((result, idx) => (
-                  <div
-                    key={result.label}
-                    className="text-center p-4 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 border border-accent/20 transform transition-all hover:scale-105 opacity-animation"
-                    style={{
-                      animation: `scaleIn 0.5s ease-out ${idx * 0.1}s both`,
-                    }}
-                  >
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-2">{result.label}</p>
-                    <p className="text-lg sm:text-3xl font-bold gradient-text">{result.value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
-
-      <style>{`
-        @keyframes slideInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .opacity-animation {
-          animation: fadeInUp 0.8s ease-out;
-        }
-      `}</style>
     </section>
   )
 }

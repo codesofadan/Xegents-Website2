@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 
 function PlusIcon() {
   return (
-    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <line x1="12" y1="5" x2="12" y2="19"></line>
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
@@ -13,7 +13,7 @@ function PlusIcon() {
 
 function MinusIcon() {
   return (
-    <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
   )
@@ -70,46 +70,39 @@ export function FAQ() {
   }, [])
 
   return (
-    <section className="py-16 sm:py-24 px-4 sm:px-6 relative" id="faq" ref={sectionRef}>
-      <div className="absolute inset-0 bg-muted/60 backdrop-blur-md pointer-events-none"></div>
-
-      <div className="relative z-10 max-w-4xl mx-auto">
+    <section className="py-20 sm:py-28 px-4 sm:px-6 relative" id="faq" ref={sectionRef}>
+      <div className="relative z-10 max-w-3xl mx-auto">
         <div
-          className={`text-center mb-12 sm:mb-16 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+          className={`text-center mb-14 sm:mb-20 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
         >
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-balance opacity-100">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance">
             Frequently Asked <span className="gradient-text">Questions</span>
           </h2>
         </div>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-2">
           {faqs.map((faq, index) => (
             <div
               key={index}
-              className={`glass-card overflow-hidden hover:border-accent/40 transition-all ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              className={`border-b border-border transition-all ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
               style={{
-                transitionDelay: inView ? `${index * 0.08}s` : "0s",
+                transitionDelay: inView ? `${index * 0.06}s` : "0s",
                 transitionDuration: "0.6s",
               }}
             >
               <button
                 onClick={() => setExpandedIndex(expandedIndex === index ? null : index)}
-                className="w-full p-4 sm:p-6 flex items-start justify-between hover:bg-muted/20 transition-colors text-left"
+                className="w-full py-5 sm:py-6 flex items-start justify-between hover:opacity-80 transition-opacity text-left"
               >
-                <h3 className="text-sm sm:text-lg font-bold opacity-100">{faq.question}</h3>
-                <div
-                  className="ml-3 sm:ml-4 mt-1 flex-shrink-0 text-accent transition-transform"
-                  style={{
-                    transform: expandedIndex === index ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                >
+                <h3 className="text-sm sm:text-base font-medium pr-4">{faq.question}</h3>
+                <div className="ml-3 mt-0.5 flex-shrink-0 text-foreground/40">
                   {expandedIndex === index ? <MinusIcon /> : <PlusIcon />}
                 </div>
               </button>
 
               {expandedIndex === index && (
-                <div className="border-t border-border px-4 sm:px-6 py-4 bg-muted/20 opacity-animation">
-                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed opacity-90">{faq.answer}</p>
+                <div className="pb-5 sm:pb-6 opacity-animation">
+                  <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed">{faq.answer}</p>
                 </div>
               )}
             </div>
@@ -121,7 +114,7 @@ export function FAQ() {
         @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -129,7 +122,7 @@ export function FAQ() {
           }
         }
         .opacity-animation {
-          animation: fadeInUp 0.8s ease-out;
+          animation: fadeInUp 0.4s ease-out;
         }
       `}</style>
     </section>
