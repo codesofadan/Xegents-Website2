@@ -104,7 +104,7 @@ export function CapacityVisualization() {
           <div key={item.label} className="p-2 sm:p-3 bg-muted/60 rounded-lg border border-accent/20">
             <p className="text-xs text-muted-foreground">{item.label}</p>
             <p
-              className={`text-lg sm:text-xl font-bold bg-gradient-to-r ${item.color} to-amber-400 bg-clip-text text-transparent`}
+              className={`text-lg sm:text-xl font-bold bg-gradient-to-r ${item.color} to-purple-400 bg-clip-text text-transparent`}
             >
               {item.value}
             </p>
