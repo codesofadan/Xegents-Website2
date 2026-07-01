@@ -43,25 +43,14 @@ export function ServicesPreview() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(".svc-preview-header",
-        { opacity: 0, y: 40 },
-        {
-          opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: "power3.out",
-          scrollTrigger: { trigger: sectionRef.current, start: "top 80%" },
+      gsap.fromTo(sectionRef.current,
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.8, ease: "power2.out",
+          scrollTrigger: { trigger: sectionRef.current, start: "top 82%", once: true },
         }
       )
-      gsap.utils.toArray<HTMLElement>(".svc-preview-card").forEach((card, i) => {
-        gsap.fromTo(card,
-          { opacity: 0, y: 40 },
-          {
-            opacity: 1, y: 0, duration: 0.7, ease: "power3.out",
-            delay: i * 0.07,
-            scrollTrigger: { trigger: card, start: "top 85%", toggleActions: "play none none none" },
-          }
-        )
-      })
     }, sectionRef)
-    return () => ctx.revert()
+    return () => { try { ctx.revert() } catch (_) {} }
   }, [])
 
   return (
@@ -87,7 +76,7 @@ export function ServicesPreview() {
         {/* Cards grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {SERVICES.map((svc) => (
-            <Link key={svc.number} href={svc.href} className="svc-preview-card block group">
+            <Link key={svc.number} href={svc.href} className="block group">
               <div className="glass-card p-7 h-full flex flex-col hover:border-accent/30 transition-colors">
                 <div className="flex items-start justify-between mb-6">
                   <span className="text-3xl text-accent/60 leading-none select-none">{svc.icon}</span>
