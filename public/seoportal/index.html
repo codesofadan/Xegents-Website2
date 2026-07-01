@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Xegents OS</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z'/%3E%3C/svg%3E" />
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { fontFamily: {
+        sans: ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      } } },
+    };
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="font-sans h-screen overflow-hidden">
+
+  <!-- ==================== TOP NAV ==================== -->
+  <header class="fixed top-0 left-0 right-0 h-11 z-40 flex items-center px-3 gap-2.5" style="background: var(--bg-0); border-bottom: 1px solid var(--line-1);">
+    <div class="flex items-center gap-2 w-[212px] pl-1">
+      <div class="size-5 rounded flex items-center justify-center" style="background: var(--acc); color: #001a10;">
+        <i data-lucide="hexagon" class="size-3"></i>
+      </div>
+      <span class="text-[12.5px] font-semibold tracking-tight">Xegents OS</span>
+      <span class="text-[9px] px-1 py-px rounded uppercase tracking-wider font-semibold" style="background: var(--acc-soft); color: var(--acc-bright);">Agency</span>
+    </div>
+
+    <nav id="breadcrumb" class="flex items-center text-[11.5px] gap-1.5 flex-1 min-w-0"></nav>
+
+    <button id="search-trigger" class="flex items-center gap-2 h-6 px-2 rounded transition-colors" style="color: var(--text-3);" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">
+      <i data-lucide="search" class="size-3"></i>
+      <span class="text-[11px]">Search</span>
+      <kbd>⌘K</kbd>
+    </button>
+
+    <button id="bell-trigger" class="btn-icon-sm relative">
+      <i data-lucide="bell" class="size-3"></i>
+      <span class="absolute top-1 right-1 size-1 rounded-full" style="background: var(--red);"></span>
+    </button>
+
+    <div class="relative">
+      <button id="avatar-trigger" class="size-6 rounded-full flex items-center justify-center text-[10px] font-semibold" style="background: var(--acc); color: #001a10;">MF</button>
+      <div id="avatar-menu" class="hidden absolute right-0 top-8 w-60 p-1 z-50 rounded-lg" style="background: var(--bg-2); box-shadow: 0 16px 48px rgba(0,0,0,0.5); border: 1px solid var(--line-2);">
+        <div class="px-2.5 py-2 border-b" style="border-color: var(--line-1);">
+          <div class="text-[12.5px] font-medium">Mark Faiz</div>
+          <div class="text-[11px] text-2">mark@growthboost.io</div>
+        </div>
+        <div class="py-1">
+          <div class="px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-3 font-medium">View as</div>
+          <button data-role="owner" class="role-opt nav-item active w-full"><i data-lucide="crown" class="ni-icon size-3.5"></i>Owner<span class="ni-badge">Mark</span></button>
+          <button data-role="strategist" class="role-opt nav-item w-full"><i data-lucide="compass" class="ni-icon size-3.5"></i>Strategist<span class="ni-badge">Dana</span></button>
+          <button data-role="specialist" class="role-opt nav-item w-full"><i data-lucide="wrench" class="ni-icon size-3.5"></i>Channel lead<span class="ni-badge">Khizer</span></button>
+          <button data-role="creator" class="role-opt nav-item w-full"><i data-lucide="pen-tool" class="ni-icon size-3.5"></i>Creator<span class="ni-badge">Aimen</span></button>
+          <button data-role="client" class="role-opt nav-item w-full"><i data-lucide="building-2" class="ni-icon size-3.5"></i>Client view<span class="ni-badge">Lumen</span></button>
+        </div>
+        <div class="py-1 border-t" style="border-color: var(--line-1);">
+          <button id="theme-toggle" class="nav-item w-full"><i data-lucide="moon" class="ni-icon size-3.5"></i><span id="theme-label">Dark mode</span></button>
+          <button onclick="navigate('settings')" class="nav-item w-full"><i data-lucide="settings" class="ni-icon size-3.5"></i>Settings</button>
+          <button class="nav-item w-full"><i data-lucide="life-buoy" class="ni-icon size-3.5"></i>Help &amp; support</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside id="sidebar" class="fixed top-11 left-0 bottom-0 w-[220px] overflow-y-auto z-30" style="background: var(--bg-0); border-right: 1px solid var(--line-1);">
+    <div class="p-2.5 space-y-2.5">
+
+      <button id="client-switcher" class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md transition-colors" style="background: var(--bg-2);">
+        <div class="size-6 rounded flex items-center justify-center" style="background: var(--acc-soft); color: var(--acc-bright);">
+          <i data-lucide="layers" data-cs-icon class="size-3"></i>
+        </div>
+        <div class="flex-1 text-left min-w-0">
+          <div data-cs-name class="text-[12.5px] font-medium leading-tight truncate">All clients</div>
+          <div data-cs-sub class="text-[10px] text-3 leading-tight mt-0.5">6 accounts</div>
+        </div>
+        <i data-lucide="chevrons-up-down" class="size-3 text-3"></i>
+      </button>
+
+      <div id="nav-groups"></div>
+
+      <div class="px-2 pt-3 mt-1 border-t" style="border-color: var(--line-1);">
+        <div class="flex items-center justify-between text-[10px] text-3 mb-1.5">
+          <span class="uppercase tracking-wider font-medium">AI spend · Jun</span>
+          <span id="api-meter-label" class="num text-2">$612/$1200</span>
+        </div>
+        <div class="h-1 rounded-full overflow-hidden" style="background: var(--bg-3);">
+          <div id="api-meter" class="h-full" style="width: 51%; background: var(--acc); border-radius: inherit;"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN ==================== -->
+  <main id="main" class="ml-[220px] mt-11 h-[calc(100vh-44px)] overflow-y-auto" style="background: var(--bg-1);">
+    <div id="page-content" class="animate-fade-in"></div>
+  </main>
+
+  <!-- ==================== COMMAND PALETTE ==================== -->
+  <div id="cmdk-backdrop" class="hidden fixed inset-0 z-50" style="background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
+    <div class="max-w-xl mx-auto mt-[14vh] overflow-hidden rounded-xl animate-fade-in" style="background: var(--bg-2); box-shadow: 0 32px 80px rgba(0,0,0,0.7); border: 1px solid var(--line-2);">
+      <div class="flex items-center gap-2.5 px-4 h-11 border-b" style="border-color: var(--line-1);">
+        <i data-lucide="search" class="size-3.5 text-2"></i>
+        <input id="cmdk-input" type="text" placeholder="Search clients, channels, actions..." class="flex-1 bg-transparent outline-none text-[13px] placeholder:text-3 text-1" />
+        <kbd>ESC</kbd>
+      </div>
+      <div id="cmdk-results" class="max-h-[60vh] overflow-y-auto py-1"></div>
+    </div>
+  </div>
+
+  <!-- ==================== NOTIFICATIONS ==================== -->
+  <div id="notif-panel" class="hidden fixed top-11 right-0 w-[380px] bottom-0 z-40 overflow-y-auto" style="background: var(--bg-1); border-left: 1px solid var(--line-1);">
+    <div class="px-4 py-3 sticky top-0 z-10 flex items-center justify-between" style="background: var(--bg-1); border-bottom: 1px solid var(--line-1);">
+      <div>
+        <h3 class="text-[13px] font-semibold">Notifications</h3>
+        <div class="text-[11px] text-3 mt-0.5">7 unread · 3 high priority</div>
+      </div>
+      <button id="notif-close" class="btn-icon-sm"><i data-lucide="x" class="size-3.5"></i></button>
+    </div>
+    <div class="p-2" id="notif-list"></div>
+  </div>
+
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 space-y-2"></div>
+
+  <!-- helpers first -->
+  <script src="assets/components.js"></script>
+  <script src="assets/charts.js"></script>
+  <script src="assets/layouts.js"></script>
+
+  <!-- shared data -->
+  <script src="data/seed.js"></script>
+  <script src="data/clients.js"></script>
+  <script src="data/channels.js"></script>
+
+  <!-- module data -->
+  <script src="data/command.js"></script>
+  <script src="data/approvals.js"></script>
+  <script src="data/ads.js"></script>
+  <script src="data/social.js"></script>
+  <script src="data/reporting.js"></script>
+  <script src="data/seo.js"></script>
+  <script src="data/content.js"></script>
+  <script src="data/email.js"></script>
+  <script src="data/crm.js"></script>
+  <script src="data/reputation.js"></script>
+  <script src="data/automations.js"></script>
+  <script src="data/team.js"></script>
+  <script src="data/settings.js"></script>
+
+  <!-- module pages -->
+  <script src="assets/pages-command.js"></script>
+  <script src="assets/pages-approvals.js"></script>
+  <script src="assets/pages-ads.js"></script>
+  <script src="assets/pages-social.js"></script>
+  <script src="assets/pages-reporting.js"></script>
+  <script src="assets/pages-seo.js"></script>
+  <script src="assets/pages-content.js"></script>
+  <script src="assets/pages-email.js"></script>
+  <script src="assets/pages-crm.js"></script>
+  <script src="assets/pages-reputation.js"></script>
+  <script src="assets/pages-clients.js"></script>
+  <script src="assets/pages-automations.js"></script>
+  <script src="assets/pages-team.js"></script>
+  <script src="assets/pages-settings.js"></script>
+
+  <script src="assets/interactions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
