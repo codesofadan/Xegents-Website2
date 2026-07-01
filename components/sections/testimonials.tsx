@@ -41,12 +41,23 @@ export function Testimonials() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(sectionRef.current,
-        { opacity: 0, y: 24 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power2.out",
-          scrollTrigger: { trigger: sectionRef.current, start: "top 82%", once: true },
+      gsap.fromTo(".testi-header-el",
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: "power3.out",
+          scrollTrigger: { trigger: sectionRef.current, start: "top 80%" },
         }
       )
+      gsap.utils.toArray<HTMLElement>(".testi-card").forEach((card, i) => {
+        gsap.fromTo(card,
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1, y: 0, duration: 0.75, ease: "power3.out",
+            delay: i * 0.09,
+            scrollTrigger: { trigger: card, start: "top 85%", toggleActions: "play none none none" },
+          }
+        )
+      })
     }, sectionRef)
     return () => { try { ctx.revert() } catch (_) {} }
   }, [])

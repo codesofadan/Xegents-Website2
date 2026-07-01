@@ -8,7 +8,7 @@
      Near-black base, single purple accent, whitened foreground.
      Color used ONLY for CTAs, active states, and one headline accent.
   ──────────────────────────────────────────────────────────────────────── */
-  --background:         oklch(0.055 0.010 270);   /* #070710 — near black */
+  --background:         oklch(0.08 0.018 270);    /* #0C0C18 — deep navy, not black */
   --foreground:         oklch(0.93  0.004 260);   /* #EEEEF5 — off-white  */
 
   --card:               oklch(0.085 0.008 265);
@@ -72,14 +72,19 @@
 
   body {
     @apply bg-background text-foreground;
-    /* ── Premium static background ──────────────────────────────────────────
-       One faint elliptical glow at the very top (like Stripe / Vercel / Linear).
-       Everything else is the flat near-black. No animation. No particles.
+    /* ── Premium background: deep dark navy, not pitch black ────────────────
+       Two-layer gradient:
+       1. A richer purple elliptical glow at the top — visible and intentional
+       2. A very subtle secondary glow at bottom-right for depth
+       Body colour is deep charcoal-navy (#0C0C18), not pure black.
     ──────────────────────────────────────────────────────────────────────── */
     background-image:
-      radial-gradient(ellipse 90% 45% at 50% -5%,
-        oklch(0.35 0.16 292 / 0.18) 0%,
-        transparent 65%);
+      radial-gradient(ellipse 110% 55% at 50% -8%,
+        oklch(0.30 0.18 292 / 0.28) 0%,
+        transparent 60%),
+      radial-gradient(ellipse 60% 40% at 85% 100%,
+        oklch(0.22 0.12 292 / 0.12) 0%,
+        transparent 55%);
     background-attachment: fixed;
     letter-spacing: -0.01em;
     overflow-x: hidden;

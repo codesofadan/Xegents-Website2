@@ -13,41 +13,7 @@ export interface BlogPost {
 
 export const posts: BlogPost[] = [
   // ─────────────────────────────────────────────────────────────────────────────
-  // POST 1 — Case Study: Real Estate
-  // ─────────────────────────────────────────────────────────────────────────────
-  {
-    slug: "how-we-saved-real-estate-agency-18-hours-week",
-    category: "Case Study",
-    title: "How We Saved a Real Estate Agency 18 Hours Per Agent Per Week",
-    excerpt:
-      "A 6-agent agency was losing $340K/year to manual admin. Here's exactly what we automated, in what order, and what it cost them.",
-    date: "Dec 2024",
-    readTime: "8 min read",
-    featured: true,
-    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1400&q=85&fit=crop&crop=center",
-    body: "When the agency founder first spoke to us, she framed it as a software problem: her CRM wasn't syncing with her document tool, and her agents were copying and pasting the same data across four systems, every day, for every deal.\n\nWe told her it wasn't a software problem. It was a process problem — and the software mismatch was making it visible.\n\nSix agents, each spending roughly three hours a day on administrative work. At a fully-loaded cost of $65/hour per agent, that's $340K/year in salary going to tasks that produce no revenue. Tasks like reformatting listing data, chasing e-signature statuses, manually updating pipeline stages, and sending templated follow-up emails that anyone with a calendar could write.",
-    sections: [
-      {
-        heading: "Week 1–2: Mapping Where the Time Actually Goes",
-        body: "We didn't start with tools. We started with a spreadsheet and a stopwatch.\n\nFor two weeks, every agent tracked every task in 15-minute blocks. Not what they thought they were doing — what they were actually doing. There's a consistent 30–40% gap between the two.\n\nThe results were ugly, in the best way. Forty-one percent of agent time across the team was going to five specific tasks: pipeline status updates (manual, done twice daily), document collection follow-ups (templated emails sent by hand), CRM data entry after client calls, proposal formatting, and deal summary reports for the principal.\n\nNone of these tasks required a licensed real estate agent. All of them were eating licensed real estate agent time."
-      },
-      {
-        heading: "The Automation Stack We Built",
-        body: "We didn't recommend a new CRM. We automated around the one they had.\n\nFirst: document processing. Contracts and listing agreements hit a shared inbox, an AI reads them, extracts the 14 key data fields the team actually needs (address, price, deadlines, parties, contingencies), and pushes them into the CRM — automatically, with a human review flag if confidence is below 94%.\n\nSecond: pipeline automation. Every deal stage change triggers a pre-built sequence — the right email to the right party at the right time. The agents approved the templates once; the system runs them forever.\n\nThird: call-to-CRM. After every client call, agents record a 90-second voice note on their phone. AI transcribes it, extracts action items and deal updates, and writes the CRM note. The agent reviews it in 10 seconds and hits confirm.\n\nFourth: reporting. The principal's weekly deal summary, which took an agent 2 hours to compile every Friday, is now generated automatically from live CRM data every Friday at 7am."
-      },
-      {
-        heading: "The Results After 90 Days",
-        body: "Admin time per agent went from 3.1 hours/day to 42 minutes/day. That's 18 hours per agent per week returned to selling.\n\nIn Q4 — their busiest quarter — the team closed 31% more deals without adding a single hire. Revenue per agent was up 28%. The principal told us the bigger win was intangible: her best agents stopped talking about leaving.\n\nTotal cost of the engagement: a fraction of the $340K annual bleed. The system paid for itself in the first 6 weeks."
-      },
-      {
-        heading: "What We'd Do Differently",
-        body: "We over-engineered the document processing pipeline on the first pass. We built for edge cases that almost never happened, which added 3 weeks to deployment. A simpler initial version, trained only on the most common contract types, would have been live in half the time and covered 92% of the volume.\n\nThe lesson: ship the 80% solution, measure what falls through the cracks, then build the edge cases with real data. Don't build for hypothetical exceptions."
-      }
-    ]
-  },
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // POST 2 — Process: The AI Audit
+  // POST 1 — Process: The AI Audit
   // ─────────────────────────────────────────────────────────────────────────────
   {
     slug: "the-ai-audit-what-we-look-for-in-week-one",
@@ -57,7 +23,7 @@ export const posts: BlogPost[] = [
       "Most consultants interview people and write reports. We shadow workflows and time tasks. The difference is about $200K in findings.",
     date: "Nov 2024",
     readTime: "6 min read",
-    featured: false,
+    featured: true,
     image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&q=85&fit=crop&crop=center",
     body: "We get asked a version of this question constantly: \"How do you know where to start?\"\n\nThe honest answer is: we don't walk in knowing. We walk in with a method for finding out. And the method involves doing something most consultants actively avoid — following people around while they work, watching what actually happens instead of asking what they think happens.\n\nThe gap between those two things is consistently where the money is.",
     sections: [

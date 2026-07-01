@@ -1,45 +1,7 @@
 export const projects = [
   {
-    id: "real-estate",
-    number: "01",
-    industry: "Real Estate",
-    client: "Multi-location Agency",
-    headline: "Cut admin time by 60% — agents closed 2–3× more deals",
-    challenge:
-      "Agents spent 35% of their week updating CRMs, chasing signatures, and formatting proposals. High performers were burning out and deals slipped through the gaps.",
-    solution:
-      "AI pipeline reads contracts, extracts key data, and syncs it across every system automatically. Predictive model flags at-risk deals 5 days before they fall.",
-    results: [
-      { value: "60%",  label: "Admin time eliminated"    },
-      { value: "2–3×", label: "Deals per agent"          },
-      { value: "18h",  label: "Saved per agent / week"   },
-    ],
-    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80&fit=crop&crop=center",
-    accent: "#a855f7",
-    year: "2024",
-  },
-  {
-    id: "healthcare",
-    number: "02",
-    industry: "Healthcare",
-    client: "Regional Healthcare Group",
-    headline: "Recovered $2.1M in missed revenue in 90 days",
-    challenge:
-      "Staff manually typed patient intake data and caught billing errors only after payer rejection. Revenue leaked quietly across every claim cycle.",
-    solution:
-      "AI intake captures patient data in seconds and syncs across all systems. A billing AI audits every claim before submission, catching errors and missing codes automatically.",
-    results: [
-      { value: "60%",   label: "Wait time reduced"      },
-      { value: "$2.1M", label: "Revenue recovered"      },
-      { value: "38%",   label: "Staff efficiency gain"  },
-    ],
-    image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=1200&q=80&fit=crop&crop=center",
-    accent: "#6366f1",
-    year: "2024",
-  },
-  {
     id: "seo-audit-os",
-    number: "03",
+    number: "01",
     industry: "SEO / Local Search",
     client: "Self-Storage Agency",
     headline: "660-point AI audit delivered in minutes — not weeks",
@@ -58,7 +20,7 @@ export const projects = [
   },
   {
     id: "leadgen-system",
-    number: "04",
+    number: "02",
     industry: "B2B Lead Generation",
     client: "Xegents Internal",
     headline: "End-to-end AI outbound pipeline — discovery to booked call",
@@ -77,7 +39,7 @@ export const projects = [
   },
   {
     id: "blog-os",
-    number: "05",
+    number: "03",
     industry: "Content / SEO",
     client: "Multiple WordPress Clients",
     headline: "One slash command. 10 AI agents. A publishable blog post.",
@@ -96,7 +58,7 @@ export const projects = [
   },
   {
     id: "copywriting-os",
-    number: "06",
+    number: "04",
     industry: "Copywriting / Marketing",
     client: "DTC & B2B Brands",
     headline: "Brand-voice AI that writes copy indistinguishable from the founder",

@@ -75,9 +75,9 @@ export function Hero() {
         </div>
 
         {/* Headline — one gradient word, everything else white */}
-        <h1 className="hero-el text-5xl sm:text-7xl lg:text-[5.5rem] font-black leading-[1.04] tracking-tight text-white mb-8">
-          We find the work your<br className="hidden sm:block" /> team shouldn't be doing,
-          {" "}<span className="gradient-text">& assign it to AI.</span>
+        <h1 className="hero-el text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.08] tracking-tight text-white mb-8">
+          We find the work your team<br className="hidden sm:block" /> shouldn't be doing,{" "}
+          <span className="gradient-text">& assign it to AI.</span>
         </h1>
 
         {/* Sub */}
