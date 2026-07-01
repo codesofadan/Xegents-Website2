@@ -4,91 +4,52 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Refined dark palette — charcoal + warm neutral accent */
-  --background: oklch(0.09 0.005 260);
+  /* Dark theme — deep navy/charcoal with purple accent */
+  --background: oklch(0.08 0.012 265);
   --foreground: oklch(0.95 0.005 260);
-  --card: oklch(0.12 0.006 260);
+  --card: oklch(0.11 0.010 265);
   --card-foreground: oklch(0.93 0.005 260);
 
-  /* Warm off-white primary */
-  --primary: oklch(0.92 0.02 80);
-  --primary-foreground: oklch(0.1 0.005 260);
+  --primary: oklch(0.62 0.22 290);
+  --primary-foreground: oklch(0.99 0.002 270);
 
-  /* Muted secondary */
-  --secondary: oklch(0.2 0.008 260);
-  --secondary-foreground: oklch(0.9 0.005 260);
+  --secondary: oklch(0.14 0.010 265);
+  --secondary-foreground: oklch(0.85 0.008 260);
 
-  /* Subtle warm accent */
-  --accent: oklch(0.65 0.2 290);
-  --accent-foreground: oklch(0.95 0.02 290);
+  --accent: oklch(0.62 0.22 290);
+  --accent-foreground: oklch(0.99 0.002 270);
 
-  --muted: oklch(0.14 0.006 260);
-  --muted-foreground: oklch(0.55 0.01 260);
-  --border: oklch(0.18 0.008 260);
-  --input: oklch(0.14 0.006 260);
-  --ring: oklch(0.65 0.2 290);
+  --muted: oklch(0.15 0.010 265);
+  --muted-foreground: oklch(0.55 0.012 265);
+  --border: oklch(0.20 0.012 265);
+  --input: oklch(0.14 0.010 265);
+  --ring: oklch(0.62 0.22 290);
 
-  /* Chart colors — muted, editorial palette */
-  --chart-1: oklch(0.65 0.2 290);
+  --chart-1: oklch(0.62 0.22 290);
   --chart-2: oklch(0.65 0.08 200);
-  --chart-3: oklch(0.60 0.1 150);
+  --chart-3: oklch(0.60 0.10 150);
   --chart-4: oklch(0.55 0.06 280);
   --chart-5: oklch(0.70 0.08 30);
 
   --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --sidebar: oklch(0.11 0.010 265);
+  --sidebar-foreground: oklch(0.95 0.005 260);
+  --sidebar-primary: oklch(0.62 0.22 290);
+  --sidebar-primary-foreground: oklch(0.99 0.002 270);
+  --sidebar-accent: oklch(0.15 0.010 265);
+  --sidebar-accent-foreground: oklch(0.95 0.005 260);
+  --sidebar-border: oklch(0.20 0.012 265);
+  --sidebar-ring: oklch(0.62 0.22 290);
 }
 
 @theme inline {
-  --font-sans: var(--font-sans, 'Space Grotesk', system-ui, sans-serif);
+  --font-sans: var(--font-sans, 'Bricolage Grotesque', system-ui, sans-serif);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
@@ -97,8 +58,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive: oklch(0.55 0.22 25);
+  --color-destructive-foreground: oklch(0.95 0.005 260);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -128,108 +89,109 @@
 
   html {
     color-scheme: dark;
-    scroll-behavior: smooth;
+    scroll-behavior: auto; /* Lenis handles smooth scroll */
   }
 
   body {
     @apply bg-background text-foreground;
     letter-spacing: -0.01em;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(147, 51, 234, 0.35);
+    color: #fff;
   }
 }
 
 @layer components {
-  /* Clean minimal card — no glassmorphism */
   .glass-card {
-    @apply bg-card border border-border rounded-xl;
+    @apply border border-border rounded-xl;
+    background: rgba(7, 4, 18, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
 
-  /* Subtle accent text — single color, not rainbow gradient */
   .gradient-text {
-    color: var(--accent);
+    background: linear-gradient(135deg, rgb(167, 97, 247) 0%, rgb(109, 40, 217) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
-  /* Soft shadow — replaces neon glow */
-  .glow-effect {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Smooth scroll-triggered animations — kept for UX */
-  @keyframes slideInUp {
-    from {
-      opacity: 0;
-      transform: translateY(24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes slideInLeft {
-    from {
-      opacity: 0;
-      transform: translateX(-24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes slideInRight {
-    from {
-      opacity: 0;
-      transform: translateX(24px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  .scroll-animate {
+  /* GSAP will animate elements with these classes */
+  .reveal-up {
     opacity: 0;
-    animation-fill-mode: both;
+    transform: translateY(40px);
+  }
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  .reveal-scale {
+    opacity: 0;
+    transform: scale(0.92);
   }
 
-  .scroll-animate.in-view {
-    animation: slideInUp 0.7s ease-out 0.1s;
+  /* Magnetic button base */
+  .magnetic {
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
-  .scroll-animate.in-view.delay-1 {
-    animation-delay: 0.15s;
-  }
-
-  .scroll-animate.in-view.delay-2 {
-    animation-delay: 0.25s;
-  }
-
-  .scroll-animate.in-view.delay-3 {
-    animation-delay: 0.35s;
-  }
-
-  @keyframes shimmer {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-
-  .shimmer {
-    animation: shimmer 2s infinite;
+  /* Page curtain */
+  .page-curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: oklch(0.08 0.012 265);
+    transform-origin: top;
   }
 }
+
+/* Lenis smooth scroll */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.4);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 51, 234, 0.7);
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in-up { animation: fadeInUp 0.7s ease-out both; }
+.animate-fade-in    { animation: fadeIn 0.5s ease-out both; }

@@ -42,6 +42,7 @@ function SettingsIcon() {
 const caseStudies = [
   {
     key: "real-estate",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=80&fit=crop&crop=center",
     industry: "Real Estate",
     company: "Real Estate Agencies",
     reality:
@@ -72,6 +73,7 @@ const caseStudies = [
   },
   {
     key: "healthcare",
+    image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=800&q=80&fit=crop&crop=center",
     industry: "Healthcare",
     company: "Healthcare Organizations",
     reality:
@@ -146,15 +148,21 @@ export function CaseStudies() {
               style={{ transitionDelay: inView ? `${caseIdx * 0.15}s` : "0s" }}
             >
               {/* Header */}
-              <div className="mb-6 space-y-1 border-b border-border pb-5">
-                <p className="text-xs font-medium text-accent uppercase tracking-wider">{caseData.industry}</p>
+              <div className="mb-6 border-b border-border pb-5">
+                <div className="relative h-32 sm:h-40 rounded-lg overflow-hidden mb-4">
+                  <img src={caseData.image} alt={caseData.industry} className="w-full h-full object-cover opacity-60" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  <span className="absolute bottom-3 left-3 text-xs font-bold uppercase tracking-widest text-accent bg-black/60 px-2.5 py-1 rounded-full">
+                    {caseData.industry}
+                  </span>
+                </div>
                 <h3 className="text-xl sm:text-2xl font-bold text-foreground">{caseData.company}</h3>
               </div>
 
               {/* Reality Section */}
               <div className="mb-6 space-y-2">
-                <h4 className="font-semibold text-sm text-red-400 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground/70">
+                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/40"></span>
                   The Reality
                 </h4>
                 <p className="text-xs sm:text-sm text-foreground/60 leading-relaxed">{caseData.reality}</p>
@@ -162,8 +170,8 @@ export function CaseStudies() {
 
               {/* Solutions Section */}
               <div className="mb-6 space-y-2">
-                <h4 className="font-semibold text-sm text-green-400 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-accent">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent"></span>
                   What AI Actually Solves
                 </h4>
                 <div className="grid gap-2">

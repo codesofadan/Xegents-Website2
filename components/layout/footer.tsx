@@ -89,6 +89,7 @@ export function Footer() {
                   width={48}
                   height={48}
                   className="h-12 w-auto object-contain"
+                  style={{ filter: "brightness(0) invert(1)" }}
                   loading="eager"
                   onError={(e) => {
                     if (e.currentTarget.src !== "/xegents-logo.png") {
@@ -97,10 +98,10 @@ export function Footer() {
                   }}
                 />
               </a>
-              <p className="text-xs sm:text-sm text-white leading-relaxed max-w-md">
+              <p className="text-xs sm:text-sm text-foreground leading-relaxed max-w-md">
                 We find the work your team shouldn't be doing, and assign it to AI.
               </p>
-              <p className="text-xs text-white leading-tight">
+              <p className="text-xs text-foreground leading-tight">
                 ~{" "}
                 <a
                   href="https://www.instagram.com/zainsaeeed/"
@@ -121,11 +122,11 @@ export function Footer() {
                 animation: "fadeInUp 0.6s ease-out 0.1s both",
               }}
             >
-              <h4 className="text-xs font-medium text-white uppercase tracking-wider">Contact</h4>
+              <h4 className="text-xs font-medium text-foreground uppercase tracking-wider">Contact</h4>
               <div className="space-y-2 flex flex-col">
                 <a
                   href="mailto:business.zainsaeed@gmail.com"
-                  className="flex items-center gap-2 text-xs sm:text-sm text-white hover:text-foreground transition-colors"
+                  className="flex items-center gap-2 text-xs sm:text-sm text-foreground hover:text-foreground transition-colors"
                 >
                   <MailIcon />
                   <span>business.zainsaeed@gmail.com</span>

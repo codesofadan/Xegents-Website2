@@ -1,12 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
 import Script from "next/script"
-import { Space_Grotesk } from "next/font/google"
+import { Bricolage_Grotesque } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import { Preloader } from "@/components/preloader"
 
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-sans" })
+const bricolageGrotesque = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
   title: "Your AI Transformation Partner | Xegents",
@@ -132,8 +131,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${spaceGrotesk.variable} font-sans antialiased`}>
-        <Preloader />
+      <body className={`${bricolageGrotesque.variable} font-sans antialiased`} suppressHydrationWarning>
         {children}
         <Analytics />
       </body>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
+import { WireAnimation } from "@/components/common/wire-animation"
 
 function DatabaseIcon() {
   return (
@@ -98,9 +99,15 @@ export function ProblemSection() {
           </p>
         </div>
 
+        {/* Wire plug-in animation */}
+        <div className={`transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+          style={{ transitionDelay: inView ? "0.05s" : "0s" }}>
+          <WireAnimation />
+        </div>
+
         <div
           className={`space-y-8 sm:space-y-10 transition-all duration-700 ${inView ? "opacity-100" : "opacity-0"}`}
-          style={{ transitionDelay: inView ? "0.1s" : "0s" }}
+          style={{ transitionDelay: inView ? "0.15s" : "0s" }}
         >
           {/* Problem Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -139,73 +146,42 @@ export function ProblemSection() {
                 </p>
               </div>
 
-              <div className="space-y-4">
-                {/* Input Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-xs sm:text-sm font-medium text-foreground/70">What You Pay For</p>
-                    <p className="text-lg sm:text-xl font-bold text-foreground">100%</p>
-                  </div>
-                  <div className="relative h-10 sm:h-11 bg-secondary rounded-lg overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-foreground/20"
-                      style={{ width: "100%" }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-medium text-foreground">
-                      Input: 100%
+              <div className="space-y-5">
+                {[
+                  { label: "Total Investment",   pct: 100, opacity: 0.35 },
+                  { label: "Lost to Inefficiency", pct: 28,  opacity: 0.22 },
+                  { label: "Actual Work Output",  pct: 72,  opacity: 0.50 },
+                ].map(({ label, pct, opacity }) => (
+                  <div key={label}>
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <p className="text-xs sm:text-sm font-medium text-foreground/70">{label}</p>
+                      <p className="text-sm font-semibold text-foreground tabular-nums">{pct}%</p>
+                    </div>
+                    <div className="h-3 bg-secondary rounded-full overflow-hidden border border-border">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${pct}%`,
+                          background: `rgba(147, 51, 234, ${opacity})`,
+                        }}
+                      />
                     </div>
                   </div>
-                </div>
-
-                {/* Loss Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-xs sm:text-sm font-medium text-foreground/70">Lost to Inefficiency</p>
-                    <p className="text-lg sm:text-xl font-bold text-red-400">28%</p>
-                  </div>
-                  <div className="relative h-10 sm:h-11 bg-secondary rounded-lg overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-red-500/30"
-                      style={{ width: "28%" }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-medium text-foreground">
-                      Lost: 28%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Output Bar */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <p className="text-xs sm:text-sm font-medium text-foreground/70">Actual Work Output</p>
-                    <p className="text-lg sm:text-xl font-bold text-green-400">72%</p>
-                  </div>
-                  <div className="relative h-10 sm:h-11 bg-secondary rounded-lg overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-green-500/25"
-                      style={{ width: "72%" }}
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-medium text-foreground">
-                      Output: 72%
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-4">
-                <div className="p-3 sm:p-4 bg-secondary rounded-lg">
-                  <p className="text-xs text-foreground/50 mb-1">Input</p>
-                  <p className="text-lg sm:text-xl font-bold text-foreground">100%</p>
-                </div>
-                <div className="p-3 sm:p-4 bg-secondary rounded-lg">
-                  <p className="text-xs text-foreground/50 mb-1">Loss</p>
-                  <p className="text-lg sm:text-xl font-bold text-red-400">28%</p>
-                </div>
-                <div className="p-3 sm:p-4 bg-secondary rounded-lg">
-                  <p className="text-xs text-foreground/50 mb-1">Output</p>
-                  <p className="text-lg sm:text-xl font-bold text-green-400">72%</p>
-                </div>
+              {/* Summary row */}
+              <div className="flex gap-6 pt-2 border-t border-border mt-2">
+                {[
+                  { label: "You invest",   value: "$1.00" },
+                  { label: "Goes to waste", value: "¢28"  },
+                  { label: "Real output",  value: "¢72"  },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <p className="text-[10px] sm:text-xs text-foreground/50 mb-0.5">{label}</p>
+                    <p className="text-base sm:text-lg font-bold text-accent">{value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
