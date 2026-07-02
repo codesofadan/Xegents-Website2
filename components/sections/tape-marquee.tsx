@@ -87,11 +87,11 @@ export function TapeMarquee() {
     <div
       ref={wrapRef}
       className="pointer-events-none overflow-hidden"
-      style={{ height: "320px", position: "relative" }}
+      style={{ height: "230px", position: "relative" }}
     >
       {/*
-        TOP tape: wrapper top=140px, rotate -8° (gentle diagonal).
-        BOTTOM tape: wrapper top=180px, rotate +8°.
+        TOP tape: wrapper top=70px, rotate -5° (gentle diagonal).
+        BOTTOM tape: wrapper top=90px, rotate +5°.
 
         Crossing at: x = viewport_center - 40/(2*tan8°) ≈ viewport_center - 142px
           ≈ 40% from left at 1440px. Both tapes fully visible across the viewport.
@@ -101,7 +101,7 @@ export function TapeMarquee() {
       {/* TOP tape outer — GSAP moves x, no rotation here */}
       <div
         className="tape-top-wrap"
-        style={{ position: "absolute", left: 0, right: 0, top: "140px" }}
+        style={{ position: "absolute", left: 0, right: 0, top: "70px" }}
       >
         <TapeStrip segs={TOP_SEGS} rotate="-5deg" />
       </div>
@@ -109,7 +109,7 @@ export function TapeMarquee() {
       {/* BOTTOM tape outer */}
       <div
         className="tape-bot-wrap"
-        style={{ position: "absolute", left: 0, right: 0, top: "160px" }}
+        style={{ position: "absolute", left: 0, right: 0, top: "90px" }}
       >
         <TapeStrip segs={BOT_SEGS} rotate="5deg" />
       </div>

@@ -65,7 +65,7 @@ export function ServicesPreview() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-24 sm:py-32 px-4 sm:px-6">
+    <section ref={sectionRef} className="pt-24 sm:pt-32 pb-10 sm:pb-14 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}

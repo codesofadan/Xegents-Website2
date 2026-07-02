@@ -3,9 +3,11 @@
 import { Hero } from "@/components/sections/hero"
 import { ProblemSection } from "@/components/sections/problem-section"
 import { HowWeWork } from "@/components/sections/how-we-work"
+import { VideoShowcase } from "@/components/sections/video-showcase"
 import { TapeMarquee } from "@/components/sections/tape-marquee"
+import { NumbersDontLie } from "@/components/sections/numbers-dont-lie"
 import { ServicesPreview } from "@/components/sections/services-preview"
-import { CaseStudies } from "@/components/sections/case-studies"
+import { ProjectsMarquee } from "@/components/sections/projects-marquee"
 import { Testimonials } from "@/components/sections/testimonials"
 import { FounderSection } from "@/components/sections/founder-section"
 import { TechStack } from "@/components/sections/tech-stack"
@@ -18,9 +20,11 @@ export default function Home() {
       <Hero />
       <TapeMarquee />
       <ProblemSection />
+      <VideoShowcase />
       <HowWeWork />
+      <NumbersDontLie />
       <ServicesPreview />
-      <CaseStudies />
+      <ProjectsMarquee />
       <Testimonials />
       <FounderSection />
       <TechStack />

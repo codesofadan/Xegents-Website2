@@ -126,7 +126,7 @@ export function CaseStudies() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 sm:py-28 px-4 sm:px-6 border-t border-border" id="case-studies-section">
+    <section ref={sectionRef} className="pt-10 sm:pt-14 pb-20 sm:pb-28 px-4 sm:px-6 border-t border-border" id="case-studies-section">
       <div className="max-w-7xl mx-auto">
         <div
           className={`text-center mb-14 sm:mb-20 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}

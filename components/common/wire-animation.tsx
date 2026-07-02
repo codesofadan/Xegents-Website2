@@ -78,13 +78,14 @@ export function WireAnimation() {
         style={{ overflow: "visible" }}
         aria-hidden="true"
       >
-        {/* LEFT BOX: BUSINESS */}
+        {/* LEFT BOX: MARKETING AGENCY */}
         <rect x="4" y="58" width="182" height="68" rx="12"
           fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
           style={{ transition: "stroke 0.4s" }} />
-        <text x="95" y="96" textAnchor="middle"
-          fontSize="18" fontWeight="800" fill={textFg} fontFamily="inherit" letterSpacing="1.5">
-          BUSINESS
+        <text x="95" y="97" textAnchor="middle"
+          fontSize="18" fontWeight="800" fill={textFg} fontFamily="inherit"
+          textLength="172" lengthAdjust="spacing">
+          MARKETING AGENCY
         </text>
         <rect x="183" y="82" width="10" height="18" rx="2.5"
           fill={a(0.3)} stroke={a(0.55)} strokeWidth="1" />
@@ -169,13 +170,13 @@ export function WireAnimation() {
         style={{ overflow: "visible" }}
         aria-hidden="true"
       >
-        {/* TOP BOX: BUSINESS */}
+        {/* TOP BOX: MARKETING AGENCY */}
         <rect x="10" y="10" width="340" height="76" rx="14"
           fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.8"
           style={{ transition: "stroke 0.4s" }} />
         <text x="180" y="55" textAnchor="middle"
           fontSize="22" fontWeight="800" fill={textFg} fontFamily="inherit" letterSpacing="2">
-          BUSINESS
+          MARKETING AGENCY
         </text>
         {/* Right port stub */}
         <rect x="348" y="40" width="11" height="18" rx="3"

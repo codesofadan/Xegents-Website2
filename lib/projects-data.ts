@@ -1,6 +1,7 @@
 export const projects = [
   {
     id: "seo-audit-os",
+    name: "SEO-AUDIT-OS",
     number: "01",
     industry: "SEO / Local Search",
     client: "Self-Storage Agency",
@@ -20,6 +21,7 @@ export const projects = [
   },
   {
     id: "leadgen-system",
+    name: "LeadGen OS",
     number: "02",
     industry: "B2B Lead Generation",
     client: "Xegents Internal",
@@ -39,6 +41,7 @@ export const projects = [
   },
   {
     id: "blog-os",
+    name: "BlogOS",
     number: "03",
     industry: "Content / SEO",
     client: "Multiple WordPress Clients",
@@ -58,6 +61,7 @@ export const projects = [
   },
   {
     id: "copywriting-os",
+    name: "Copywriting-OS",
     number: "04",
     industry: "Copywriting / Marketing",
     client: "DTC & B2B Brands",
