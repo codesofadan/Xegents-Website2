@@ -2,27 +2,45 @@ import { notFound } from "next/navigation"
 import Link from "next/link"
 import { posts, getPost } from "@/lib/blog-data"
 
-interface Props { params: { slug: string } }
+interface Props { params: Promise<{ slug: string }> }
 
 export function generateStaticParams() {
   return posts.map((p) => ({ slug: p.slug }))
 }
 
-export function generateMetadata({ params }: Props) {
-  const post = getPost(params.slug)
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params
+  const post = getPost(slug)
   if (!post) return {}
-  return { title: `${post.title} — Xegents`, description: post.excerpt }
+  return { title: `${post.title} | Xegents`, description: post.excerpt }
 }
 
-export default function BlogPostPage({ params }: Props) {
-  const post = getPost(params.slug)
+export default async function BlogPostPage({ params }: Props) {
+  const { slug } = await params
+  const post = getPost(slug)
   if (!post) notFound()
 
   const idx  = posts.indexOf(post)
   const next = posts[(idx + 1) % posts.length]
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    image: post.image,
+    author: { "@type": "Person", name: "Zain Saeed" },
+    publisher: { "@type": "Organization", name: "Xegents" },
+  }
+
   return (
     <div className="min-h-screen">
+
+      {/* ── Article structured data ── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* ── Hero ── */}
       <div className="relative h-[50vh] min-h-[360px] max-h-[520px] overflow-hidden">

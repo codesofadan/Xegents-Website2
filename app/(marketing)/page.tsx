@@ -1,8 +1,5 @@
-"use client"
-
 import { Hero } from "@/components/sections/hero"
 import { ProblemSection } from "@/components/sections/problem-section"
-import { HowWeWork } from "@/components/sections/how-we-work"
 import { VideoShowcase } from "@/components/sections/video-showcase"
 import { TapeMarquee } from "@/components/sections/tape-marquee"
 import { NumbersDontLie } from "@/components/sections/numbers-dont-lie"
@@ -21,7 +18,6 @@ export default function Home() {
       <TapeMarquee />
       <ProblemSection />
       <VideoShowcase />
-      <HowWeWork />
       <NumbersDontLie />
       <ServicesPreview />
       <ProjectsMarquee />

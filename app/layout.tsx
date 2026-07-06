@@ -8,12 +8,12 @@ import "./globals.css"
 const bricolageGrotesque = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://xegents.com"),
   title: "Your AI Transformation Partner | Xegents",
   description:
     "Your team's already doing the work. AI just does it faster and cheaper. We identify where AI creates immediate ROI, then build those systems for you.",
   keywords:
     "Xegents, Xegents AI, AI Agency, AI Automation Agency, AI Transformation Partner, AI Consulting, Operational AI",
-  generator: "v0.app",
   openGraph: {
     title: "Your AI Transformation Partner | Xegents",
     description:

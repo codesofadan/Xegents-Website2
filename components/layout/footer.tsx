@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
+
 function MailIcon() {
   return (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -64,19 +66,42 @@ function LinkedinIcon() {
 }
 
 export function Footer() {
+  const [visible, setVisible] = useState(false)
+  const footerRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setVisible(true)
+      return
+    }
+
+    const el = footerRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.15 }
+    )
+    observer.observe(el)
+
+    return () => observer.disconnect()
+  }, [])
+
+  const reveal = visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+
   return (
-    <footer className="border-t border-border">
+    <footer ref={footerRef} className="border-t border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         {/* Main Footer Content */}
-        <div className="space-y-8 sm:space-y-12 opacity-animation">
+        <div className="space-y-8 sm:space-y-12">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 lg:gap-16">
             {/* Left section */}
-            <div
-              className="space-y-3 opacity-animation flex-shrink-0"
-              style={{
-                animation: "fadeInUp 0.6s ease-out",
-              }}
-            >
+            <div className={`space-y-3 flex-shrink-0 transition-all duration-700 ${reveal}`}>
               <a
                 href="https://xegents.com"
                 target="_blank"
@@ -116,12 +141,7 @@ export function Footer() {
             </div>
 
             {/* Right section - Contact */}
-            <div
-              className="space-y-3 opacity-animation flex-shrink-0"
-              style={{
-                animation: "fadeInUp 0.6s ease-out 0.1s both",
-              }}
-            >
+            <div className={`space-y-3 flex-shrink-0 transition-all duration-700 delay-100 ${reveal}`}>
               <h4 className="text-xs font-medium text-foreground uppercase tracking-wider">Contact</h4>
               <div className="space-y-2 flex flex-col">
                 <a
@@ -145,10 +165,7 @@ export function Footer() {
 
         {/* Divider */}
         <div
-          className="border-t border-border mt-10 sm:mt-14 pt-6 sm:pt-8 opacity-animation"
-          style={{
-            animation: "fadeInUp 0.6s ease-out 0.2s both",
-          }}
+          className={`border-t border-border mt-10 sm:mt-14 pt-6 sm:pt-8 transition-all duration-700 delay-200 ${reveal}`}
         >
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-left text-xs text-foreground/70">
@@ -202,22 +219,6 @@ export function Footer() {
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .opacity-animation {
-          animation: fadeInUp 0.8s ease-out;
-        }
-      `}</style>
     </footer>
   )
 }

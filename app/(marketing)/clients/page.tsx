@@ -1,3 +1,9 @@
+export const metadata = {
+  title: "Clients | Xegents",
+  description:
+    "Meet the clients Xegents partners with — businesses transforming operations with AI automation, custom agents, and intelligent workflows. Coming soon.",
+}
+
 export default function ClientsPage() {
   return (
     <main className="min-h-screen w-full bg-background pt-32 px-4 sm:px-6">

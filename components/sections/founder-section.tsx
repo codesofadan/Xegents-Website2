@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import Image from "next/image"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 
@@ -35,21 +36,18 @@ export function FounderSection() {
 
         {/* Photo */}
         <div className="founder-left order-2 lg:order-1">
-          <div className="relative max-w-sm mx-auto lg:ml-12 lg:mr-0">
+          <div className="max-w-sm mx-auto lg:ml-12 lg:mr-0">
             {/* Photo — circular portrait */}
-            <div className="aspect-square rounded-full overflow-hidden border border-accent/20">
-              <img
+            <div className="relative aspect-square rounded-full overflow-hidden border border-accent/20">
+              <Image
                 src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80&fit=crop&crop=face"
-                alt="Zain Saeed — Founder, Xegents"
-                className="w-full h-full object-cover object-top"
+                alt="Zain Saeed - Founder, Xegents"
+                fill
+                sizes="(max-width: 1024px) 100vw, 384px"
+                className="object-cover object-top"
               />
             </div>
 
-            {/* Floating stat card */}
-            <div className="absolute -bottom-5 -right-5 glass-card px-5 py-4">
-              <p className="text-2xl font-black text-accent">2+ yrs</p>
-              <p className="text-xs text-foreground/50 uppercase tracking-widest">AI agency experience</p>
-            </div>
           </div>
         </div>
 
