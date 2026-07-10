@@ -40,11 +40,11 @@ export function FounderSection() {
             {/* Photo — circular portrait */}
             <div className="relative aspect-square rounded-full overflow-hidden border border-accent/20">
               <Image
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80&fit=crop&crop=face"
+                src="/images/zain-img.jpeg"
                 alt="Zain Saeed - Founder, Xegents"
                 fill
                 sizes="(max-width: 1024px) 100vw, 384px"
-                className="object-cover object-top"
+                className="object-cover"
               />
             </div>
 

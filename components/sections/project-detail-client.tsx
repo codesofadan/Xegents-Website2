@@ -175,6 +175,26 @@ function ArchitectureDiagram({ project }: { project: Project }) {
   return null
 }
 
+// ── Client quotes (matched to the homepage testimonials) ─────────────────────
+
+const QUOTES: Record<string, { text: string; name: string; role: string }> = {
+  "seo-audit-os": {
+    text: "The 660-point audit that used to take us two weeks now lands in ten minutes as a consulting-grade PDF. Prospects sign before the competition has even sent their first email.",
+    name: "Umer",
+    role: "SEO Agency Founder",
+  },
+  "leadgen-system": {
+    text: "From finding the lead to booking the call, the pipeline runs itself — personalised emails, a free-value PDF for every prospect, reply detection. I just show up to the meetings.",
+    name: "Hasan",
+    role: "B2B Consultant",
+  },
+  "blog-os": {
+    text: "I used to lose entire weekends writing blogs for clients. Now one command runs the whole pipeline — research, drafting, fact-checking, even the WordPress upload. Ten agents doing what my team of three couldn't keep up with.",
+    name: "Asim",
+    role: "Content Agency Owner",
+  },
+}
+
 // ── Chapter section wrapper ──────────────────────────────────────────────────
 
 function Chapter({
@@ -346,6 +366,27 @@ export function ProjectDetailClient({
               </div>
             ))}
           </div>
+
+          {/* Client quote — only for projects with a matched testimonial */}
+          {QUOTES[project.id] && (
+            <figure className="mt-10 sm:mt-14 max-w-3xl mx-auto text-center">
+              <svg className="w-7 h-7 text-accent/40 mx-auto mb-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
+              </svg>
+              <blockquote className="text-lg sm:text-2xl text-white/75 leading-relaxed font-medium mb-6">
+                &ldquo;{QUOTES[project.id].text}&rdquo;
+              </blockquote>
+              <figcaption className="flex items-center justify-center gap-3">
+                <span className="w-9 h-9 rounded-full flex items-center justify-center border border-accent/25 bg-gradient-to-br from-accent/25 to-accent/5 text-accent font-black text-sm">
+                  {QUOTES[project.id].name.charAt(0)}
+                </span>
+                <span className="text-sm text-white/50">
+                  <span className="font-bold text-white/80">{QUOTES[project.id].name}</span> · {QUOTES[project.id].role}
+                </span>
+              </figcaption>
+            </figure>
+          )}
         </Chapter>
 
       </div>

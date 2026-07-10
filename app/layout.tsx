@@ -77,7 +77,7 @@ export default function RootLayout({
               "@type": "Organization",
               name: "Xegents",
               url: "https://xegents.com/",
-              logo: "/icon.jpg",
+              logo: "https://xegents.com/icon.jpg",
               description:
                 "We help companies identify high-ROI AI opportunities, then build AI systems that save time, cut costs, and increase output.",
               email: "business.zainsaeed@gmail.com",
@@ -109,7 +109,7 @@ export default function RootLayout({
               brand: {
                 "@type": "Brand",
                 name: "Xegents",
-                logo: "/icon.jpg",
+                logo: "https://xegents.com/icon.jpg",
               },
             }),
           }}

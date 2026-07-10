@@ -9,30 +9,51 @@ gsap.registerPlugin(ScrollTrigger)
 const TESTIMONIALS = [
   {
     quote:
-      "Before Xegents, my agents were spending 3 hours a day on admin. Now they spend 20 minutes. We closed 31% more deals in Q4 without hiring a single person.",
-    name: "Marcus Delgado",
-    role: "CEO",
-    company: "Westfield Properties",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80&fit=crop&crop=face",
-    stat: "31% more deals, Q4",
+      "I used to lose entire weekends writing blogs for clients. Now one command runs the whole pipeline — research, drafting, fact-checking, even the WordPress upload. Ten agents doing what my team of three couldn't keep up with.",
+    name: "Asim",
+    role: "Content Agency Owner",
+    system: "BlogOS",
+    stat: "1 post/day, same team",
   },
   {
     quote:
-      "The AI billing audit found $180K in missed claims in the first month. ROI on this engagement was 11× in 90 days. Nothing we've ever invested in came close.",
-    name: "Dr. Priya Mehta",
-    role: "Director of Operations",
-    company: "HealthPlus Group",
-    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&q=80&fit=crop&crop=face",
-    stat: "$180K recovered, month 1",
+      "The 660-point audit that used to take us two weeks now lands in ten minutes as a consulting-grade PDF. Prospects sign before the competition has even sent their first email.",
+    name: "Umer",
+    role: "SEO Agency Founder",
+    system: "SEO-AUDIT-OS",
+    stat: "2 weeks → 10 min",
   },
   {
     quote:
-      "Our support team was drowning in tickets. The AI agent handles 78% of them automatically now. We scaled from 4K to 9K monthly orders without adding headcount.",
-    name: "Ryan Okafor",
-    role: "Founder",
-    company: "Velocity DTC",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80&fit=crop&crop=face",
-    stat: "2× scale, 0 new hires",
+      "From finding the lead to booking the call, the pipeline runs itself — personalised emails, a free-value PDF for every prospect, reply detection. I just show up to the meetings.",
+    name: "Hasan",
+    role: "B2B Consultant",
+    system: "LeadGen OS",
+    stat: "Pipeline on autopilot",
+  },
+  {
+    quote:
+      "Quotations, itineraries, follow-ups — the automation answers enquiries while we sleep. We reply in minutes now instead of the next morning, and our bookings show it.",
+    name: "Hamza",
+    role: "Travel Agency Owner",
+    system: "Travel Automation",
+    stat: "Replies in minutes",
+  },
+  {
+    quote:
+      "SEO AIOS runs our entire SEO operation — audits, content, rank tracking. What needed five different tools and two juniors is now one system that never misses a check.",
+    name: "Haseeb",
+    role: "SEO Lead",
+    system: "SEO AIOS",
+    stat: "5 tools → 1 system",
+  },
+  {
+    quote:
+      "We plugged SEO AIOS into three client accounts and rankings started moving within weeks. It catches the technical issues humans skim past — every single time.",
+    name: "Danyal",
+    role: "Agency Partner",
+    system: "SEO AIOS",
+    stat: "3 clients, rankings up",
   },
 ]
 
@@ -146,14 +167,13 @@ export function Testimonials() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-5 border-t border-border">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={t.avatar}
-                    alt={t.name}
-                    className="w-10 h-10 rounded-full object-cover border border-border flex-shrink-0"
-                  />
+                  {/* Initial avatar — no stock photos */}
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border border-accent/25 bg-gradient-to-br from-accent/25 to-accent/5 text-accent font-black text-sm">
+                    {t.name.charAt(0)}
+                  </div>
                   <div>
                     <p className="text-sm font-bold leading-tight">{t.name}</p>
-                    <p className="text-xs text-foreground/45 leading-tight">{t.role}, {t.company}</p>
+                    <p className="text-xs text-foreground/45 leading-tight">{t.role} · {t.system}</p>
                   </div>
                 </div>
                 <span className="text-[10px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full whitespace-nowrap">
