@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Force-bundle the MongoDB stack instead of externalizing it — Turbopack
+  // symlinks externalized packages, which fails on Windows without Developer
+  // Mode (os error 1314). Bundling avoids the symlink entirely.
+  transpilePackages: ["mongoose", "mongodb", "bson"],
   images: {
     remotePatterns: [
       {

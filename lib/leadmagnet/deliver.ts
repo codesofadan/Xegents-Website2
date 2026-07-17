@@ -1,0 +1,37 @@
+import { Lead, LeadMagnet, type LeadDoc, type LeadMagnetDoc } from "./models"
+import { createDownloadToken } from "./download-token"
+import { sendMagnetDelivery } from "./mail"
+import { fetchFileBuffer, signedFileUrl } from "./storage"
+
+const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL || "https://xegents.com"
+
+/** Resolve the magnet's real file URL (signed Cloudinary URL or external link). */
+export function magnetFileUrl(magnet: LeadMagnetDoc): string {
+  if (magnet.filePublicId) return signedFileUrl(magnet.filePublicId)
+  return magnet.externalUrl || ""
+}
+
+/**
+ * Send the delivery email (download link + attachment when small) and stamp
+ * the lead as delivered. Returns the tokenized download URL so callers can
+ * also show it in the UI.
+ */
+export async function deliverMagnet(lead: LeadDoc, magnet: LeadMagnetDoc, paid: boolean): Promise<string> {
+  const token = createDownloadToken(String(magnet._id), String(lead._id))
+  const downloadUrl = `${SITE_URL()}/api/download/${token}`
+
+  // Attach the actual file when it's small enough (mail.ts caps at 8MB)
+  const src = magnetFileUrl(magnet)
+  const buffer = src ? await fetchFileBuffer(src) : undefined
+
+  await sendMagnetDelivery(lead, magnet, downloadUrl, buffer)
+
+  await Lead.updateOne(
+    { _id: lead._id },
+    { $set: { status: paid ? "paid_delivered" : "free_delivered", deliveredAt: new Date() } }
+  )
+
+  return downloadUrl
+}
+
+export { Lead, LeadMagnet }

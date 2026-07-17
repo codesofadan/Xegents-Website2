@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: "/seoportal",
+        disallow: ["/seoportal", "/admin", "/api/"],
       },
     ],
     sitemap: "https://xegents.com/sitemap.xml",
