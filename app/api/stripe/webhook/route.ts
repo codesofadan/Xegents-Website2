@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         if (magnet) {
           await Lead.updateOne({ _id: lead._id }, { $set: { paymentMethod: "stripe" } })
           try {
-            await deliverMagnet(lead, magnet, true)
+            await deliverMagnet(lead, magnet, true, new URL(req.url).origin)
           } catch (e) {
             console.error("[stripe deliver]", e)
           }

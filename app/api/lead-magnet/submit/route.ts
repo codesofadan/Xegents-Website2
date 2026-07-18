@@ -7,8 +7,6 @@ import { stripe, isStripeConfigured, bankDetails } from "@/lib/leadmagnet/stripe
 
 export const runtime = "nodejs"
 
-const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL || "https://xegents.com"
-
 /**
  * Public form submission for a lead magnet.
  * Free      → save lead, notify, email the file, return download link.
@@ -26,6 +24,10 @@ export async function POST(req: Request) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 })
   }
+
+  // Origin of the request the visitor actually made — localhost in dev,
+  // https://www.xegents.com in production — so emailed links always match.
+  const origin = new URL(req.url).origin
 
   await connectDB()
   const magnet = await LeadMagnet.findOne({ slug, active: true })
@@ -50,7 +52,7 @@ export async function POST(req: Request) {
   /* ── Free: deliver immediately ── */
   if (!isPaid) {
     try {
-      const downloadUrl = await deliverMagnet(lead, magnet, false)
+      const downloadUrl = await deliverMagnet(lead, magnet, false, origin)
       return NextResponse.json({ ok: true, mode: "free", downloadUrl })
     } catch (e) {
       console.error("[deliver]", e)
@@ -83,8 +85,8 @@ export async function POST(req: Request) {
       },
     ],
     metadata: { leadId: String(lead._id), magnetId: String(magnet._id) },
-    success_url: `${SITE_URL()}/lead-magnet/${magnet.slug}?paid=1`,
-    cancel_url: `${SITE_URL()}/lead-magnet/${magnet.slug}?cancelled=1`,
+    success_url: `${origin}/lead-magnet/${magnet.slug}?paid=1`,
+    cancel_url: `${origin}/lead-magnet/${magnet.slug}?cancelled=1`,
   })
 
   await Lead.updateOne({ _id: lead._id }, { $set: { stripeSession: session.id } })

@@ -12,7 +12,7 @@ interface Ctx { params: Promise<{ id: string }> }
  * POST → manually confirm a bank-transfer payment: marks the lead paid and
  * sends the delivery email with the file. Used from the admin dashboard.
  */
-export async function POST(_req: Request, { params }: Ctx) {
+export async function POST(req: Request, { params }: Ctx) {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   await connectDB()
@@ -24,7 +24,7 @@ export async function POST(_req: Request, { params }: Ctx) {
   if (!magnet) return NextResponse.json({ error: "Lead magnet no longer exists" }, { status: 404 })
 
   try {
-    await deliverMagnet(lead, magnet, magnet.price > 0)
+    await deliverMagnet(lead, magnet, magnet.price > 0, new URL(req.url).origin)
     return NextResponse.json({ ok: true })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Delivery failed" }, { status: 500 })

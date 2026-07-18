@@ -12,7 +12,7 @@ import type { LeadMagnetDoc, LeadDoc } from "./models"
 
 const NOTIFY_EMAIL = () => process.env.NOTIFY_EMAIL || "zen@theredagents.com"
 const MAIL_FROM = () => process.env.MAIL_FROM || process.env.SMTP_USER || "Xegents <no-reply@xegents.com>"
-const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL || "https://xegents.com"
+const SITE_URL = () => (process.env.NEXT_PUBLIC_SITE_URL || "https://xegents.com").replace(/\/+$/, "")
 
 // Attach the zip when it's small enough; otherwise the link carries it.
 const MAX_ATTACH_BYTES = 8 * 1024 * 1024
@@ -92,21 +92,18 @@ export async function sendMagnetDelivery(
   downloadUrl: string,
   fileBuffer?: Buffer
 ): Promise<void> {
-  const attach =
-    fileBuffer && fileBuffer.length <= MAX_ATTACH_BYTES
-      ? [{ filename: magnet.fileName || `${magnet.slug}.zip`, content: fileBuffer }]
-      : undefined
-
-  const info = await transporter().sendMail({
+  const build = (withAttachment: boolean) => ({
     from: MAIL_FROM(),
     to: lead.email,
     subject: `Your download: ${magnet.title}`,
-    attachments: attach,
+    attachments: withAttachment
+      ? [{ filename: magnet.fileName || `${magnet.slug}.zip`, content: fileBuffer! }]
+      : undefined,
     html: shell(`
       <h2 style="color:#fff;margin:0 0 12px;font-size:20px">Here's your ${magnet.title} 🎁</h2>
       <p>Hi ${lead.name.split(" ")[0]},</p>
       <p>Thanks for grabbing <strong style="color:#fff">${magnet.title}</strong>. ${
-        attach ? "The file is attached to this email, and you can also" : "You can"
+        withAttachment ? "The file is attached to this email, and you can also" : "You can"
       } download it any time in the next 7 days with the button below.</p>
       <p style="text-align:center;margin:28px 0">
         <a href="${downloadUrl}" style="background:#9333ea;color:#fff;text-decoration:none;font-weight:700;padding:14px 32px;border-radius:10px;display:inline-block">Download ${magnet.title}</a>
@@ -114,5 +111,19 @@ export async function sendMagnetDelivery(
       <p style="color:#8b8b9d;font-size:13px">Questions? Just reply to this email — a real human reads it.</p>
       <p>— Zain, Xegents</p>`),
   })
-  if (!isMailConfigured()) console.log("[mail:dev] delivery email:", info.message?.toString?.().slice(0, 600))
+
+  const canAttach = Boolean(fileBuffer && fileBuffer.length <= MAX_ATTACH_BYTES)
+  try {
+    const info = await transporter().sendMail(build(canAttach))
+    if (!isMailConfigured()) console.log("[mail:dev] delivery email:", info.message?.toString?.().slice(0, 600))
+  } catch (e) {
+    // Gmail rejects some zip contents outright (552-5.7.0). The download link
+    // still delivers the file, so retry link-only rather than failing the lead.
+    if (canAttach) {
+      console.warn("[mail] attachment rejected, resending link-only:", e instanceof Error ? e.message.split("\n")[0] : e)
+      await transporter().sendMail(build(false))
+    } else {
+      throw e
+    }
+  }
 }
