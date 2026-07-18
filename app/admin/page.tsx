@@ -60,6 +60,9 @@ export default function AdminPage() {
       if (mRes.status === 401) { setAuthed(false); return }
       const m = await mRes.json()
       const l = await lRes.json()
+      if (!mRes.ok || !lRes.ok) {
+        setBanner(m.error ?? l.error ?? `Server error (${mRes.status})`)
+      }
       setMagnets(m.magnets ?? [])
       setLeads(l.leads ?? [])
       setAuthed(true)

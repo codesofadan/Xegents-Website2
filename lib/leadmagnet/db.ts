@@ -20,7 +20,9 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
   if (cache.conn) return cache.conn
   if (!cache.promise) {
-    cache.promise = mongoose.connect(uri, { bufferCommands: false })
+    // Fail fast: surface unreachable-cluster errors (e.g. Atlas Network Access
+    // blocking the host) in seconds instead of hanging for the 30s default.
+    cache.promise = mongoose.connect(uri, { bufferCommands: false, serverSelectionTimeoutMS: 8000 })
   }
   try {
     cache.conn = await cache.promise

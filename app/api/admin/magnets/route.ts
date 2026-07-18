@@ -13,13 +13,18 @@ function slugify(s: string): string {
 /** GET → list all magnets with lead counts */
 export async function GET() {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  await connectDB()
-  const magnets = await LeadMagnet.find().sort({ createdAt: -1 }).lean()
-  const counts = await Lead.aggregate([{ $group: { _id: "$magnetId", n: { $sum: 1 } } }])
-  const countMap = new Map(counts.map((c) => [String(c._id), c.n]))
-  return NextResponse.json({
-    magnets: magnets.map((m) => ({ ...m, _id: String(m._id), leadCount: countMap.get(String(m._id)) ?? 0 })),
-  })
+  try {
+    await connectDB()
+    const magnets = await LeadMagnet.find().sort({ createdAt: -1 }).lean()
+    const counts = await Lead.aggregate([{ $group: { _id: "$magnetId", n: { $sum: 1 } } }])
+    const countMap = new Map(counts.map((c) => [String(c._id), c.n]))
+    return NextResponse.json({
+      magnets: magnets.map((m) => ({ ...m, _id: String(m._id), leadCount: countMap.get(String(m._id)) ?? 0 })),
+    })
+  } catch (e) {
+    // Surface the real reason (missing env, Atlas network block, …) to the dashboard
+    return NextResponse.json({ error: `Database error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 })
+  }
 }
 
 /** POST (multipart/form-data) → create a magnet, uploading its file to Cloudinary */

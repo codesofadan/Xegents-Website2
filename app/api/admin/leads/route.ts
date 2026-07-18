@@ -8,7 +8,11 @@ export const runtime = "nodejs"
 /** GET → all leads, newest first, with magnet titles */
 export async function GET() {
   if (!(await isAdminRequest())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  await connectDB()
+  try {
+    await connectDB()
+  } catch (e) {
+    return NextResponse.json({ error: `Database error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 })
+  }
 
   const [leads, magnets] = await Promise.all([
     Lead.find().sort({ createdAt: -1 }).limit(500).lean(),
