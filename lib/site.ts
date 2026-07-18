@@ -10,6 +10,7 @@ export const siteConfig = {
     { label: "Services", href: "/services" },
     { label: "Projects", href: "/projects" },
     { label: "Blog", href: "/blog" },
+    { label: "Free Tools", href: "/lead-magnets" },
     { label: "Contact", href: "/contact" },
   ],
   social: {

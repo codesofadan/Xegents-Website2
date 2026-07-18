@@ -12,6 +12,12 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      // Singular → listing, so both /lead-magnet and /lead-magnets work
+      { source: "/lead-magnet", destination: "/lead-magnets", permanent: true },
+    ]
+  },
   async headers() {
     return [
       {

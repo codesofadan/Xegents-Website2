@@ -44,6 +44,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.5,
     },
+    {
+      url: `${BASE_URL}/lead-magnets`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
   ]
 
   const projectPages: MetadataRoute.Sitemap = projects.map((project) => ({
