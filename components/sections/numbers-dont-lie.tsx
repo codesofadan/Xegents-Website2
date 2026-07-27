@@ -1,116 +1,78 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import {
   TrendingUp,
-  ShieldCheck,
   ArrowUpRight,
+  ArrowDownRight,
   Clock,
   Zap,
   ListChecks,
   DollarSign,
   Users,
-  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react"
 
 gsap.registerPlugin(ScrollTrigger)
 
 /* ────────────────────────────────────────────────────────────────────────────
-   "The Numbers Don't Lie" — outcome proof grid.
-   Themed to the site palette: deep-navy surfaces + purple accent (--accent).
-   Row 1: 2 boxes, Row 2: 3 boxes. Boxes are static; only their inner visuals
-   animate. The 5th box (error reduction) is the purple gradient highlight.
-   Numbers are illustrative placeholders pending real engagement values.
+   "The Numbers Don't Lie" — market proof, two boxes.
+
+   EVERY FIGURE IS PUBLISHED INDUSTRY RESEARCH, not a Xegents estimate.
+
+   Box 2 plots McKinsey's own adoption series. It is NOT smoothed into a clean
+   ramp: adoption genuinely sat flat around 50% from 2020 to 2023 before it
+   broke. The flat years are what make the last three bars land — a market that
+   moved further in twenty-four months than in the five years before it.
+
+   The chart builds once, left to right, on scroll. It does not loop. Because
+   colour is mapped to height, the sequence naturally deepens as it climbs:
+   short early bars read dark, the tall recent ones read bright violet.
 ──────────────────────────────────────────────────────────────────────────── */
 
-const ACCENT = "#8B5CF6"       // matches --accent  (oklch(0.60 0.22 292))
-const ACCENT_DEEP = "#6D28D9"  // deeper violet for gradients
-
-type Visual = "columns" | "area" | "network" | "globe" | "bars"
-
-interface Box {
-  key: string
-  title: string
-  sub: string
-  visual: Visual
-  purple?: boolean
-  tall?: boolean
+// ── Box 1 — sourced adoption / return metrics ──────────────────────────────
+type Metric = {
+  icon: LucideIcon
+  label: string
+  value: string
+  note: string
+  dir: "up" | "down" // direction of the real figure — never an invented delta
 }
-
-const BOXES: Record<string, Box> = {
-  time: {
-    key: "time",
-    title: "10,000+ Hours Saved / Year",
-    sub: "Repetitive, manual work handed to AI systems — your team gets its week back.",
-    visual: "columns",
-    tall: true,
-  },
-  budget: {
-    key: "budget",
-    title: "$2M+ in Operating Costs Saved",
-    sub: "Same output at a fraction of the overhead — reinvested where it compounds.",
-    visual: "area",
-    tall: true,
-  },
-  jobs: {
-    key: "jobs",
-    title: "100% Job Retention",
-    sub: "We automate the busywork, not the people. Nobody gets replaced — everybody levels up.",
-    visual: "network",
-  },
-  coverage: {
-    key: "coverage",
-    title: "24/7 Coverage, Zero Overtime",
-    sub: "Systems that run round the clock — without a single extra hire or overtime hour.",
-    visual: "globe",
-  },
-  // 5th box — purple gradient highlight
-  errors: {
-    key: "errors",
-    title: "90% Fewer Errors",
-    sub: "Deterministic workflows replace human slips — accuracy that compounds over time.",
-    visual: "bars",
-    purple: true,
-  },
-}
-
-// ── Box 1 — two-column metric-tile marquee (col-1 up, col-2 down) ──────────
-type Metric = { icon: LucideIcon; label: string; value: string; pct: string }
 
 const METRICS: Metric[] = [
-  { icon: Clock,      label: "Time Saved",        value: "68%",  pct: "25%" },
-  { icon: Zap,        label: "Faster Turnaround", value: "8×",   pct: "40%" },
-  { icon: ListChecks, label: "Tasks Automated",   value: "120+", pct: "24%" },
-  { icon: DollarSign, label: "Cost Reduced",      value: "$2M",  pct: "31%" },
-  { icon: TrendingUp, label: "Team Output",       value: "3×",   pct: "210%" },
-  { icon: Users,      label: "Team Retained",     value: "100%", pct: "12%" },
+  { icon: DollarSign, label: "Return",         value: "$3.70",   note: "for every $1 put into AI",  dir: "up" },
+  { icon: Clock,      label: "Time back",      value: "2.2 hrs", note: "per worker, every week",    dir: "up" },
+  { icon: TrendingUp, label: "Productivity",   value: "+37%",    note: "in AI-augmented roles",     dir: "up" },
+  { icon: Users,      label: "Adoption",       value: "88%",     note: "of firms already run AI",   dir: "up" },
+  { icon: Zap,        label: "Revenue growth", value: "2.5×",    note: "against non-AI peers",      dir: "up" },
+  { icon: ListChecks, label: "Support cost",   value: "−30%",    note: "to run the same desk",      dir: "down" },
 ]
 
-function MetricTile({ icon: Icon, label, value, pct }: Metric) {
+function MetricTile({ icon: Icon, label, value, note, dir }: Metric) {
+  const Arrow = dir === "up" ? ArrowUpRight : ArrowDownRight
   return (
     <div className="mb-2.5 rounded-xl bg-secondary/70 border border-border/70 px-3.5 py-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="flex items-center gap-1.5 text-xs text-foreground/55 truncate">
-          <Icon className="w-4 h-4 text-accent shrink-0" />
-          {label}
+      <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-foreground/45">
+        <Icon className="w-3.5 h-3.5 text-accent shrink-0" />
+        {label}
+      </span>
+      <div className="mt-1.5 flex items-center gap-2">
+        <p className="text-2xl sm:text-3xl font-black text-foreground leading-none tracking-tight tabular-nums">
+          {value}
+        </p>
+        {/* direction of the real figure — both directions are wins, hence both green */}
+        <span className="inline-flex items-center rounded-md border border-emerald-400/20 bg-emerald-400/10 p-0.5">
+          <Arrow className="w-3 h-3 text-emerald-400/90" />
         </span>
-        <MoreHorizontal className="w-4 h-4 text-foreground/25 shrink-0" />
       </div>
-      <div className="flex items-center gap-2.5">
-        <span className="text-2xl sm:text-3xl font-black text-foreground leading-none tracking-tight">{value}</span>
-        <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 rounded-md px-1.5 py-1">
-          {pct}
-          <ArrowUpRight className="w-3 h-3" />
-        </span>
-      </div>
+      <p className="mt-1 text-[11px] text-foreground/40 leading-tight">{note}</p>
     </div>
   )
 }
 
-function ColumnsVisual() {
+function MetricsVisual({ paused }: { paused: string }) {
   const colA = [METRICS[0], METRICS[1], METRICS[2]]
   const colB = [METRICS[3], METRICS[4], METRICS[5]]
   return (
@@ -123,12 +85,12 @@ function ColumnsVisual() {
     >
       <div className="grid grid-cols-2 gap-2.5 h-full">
         <div className="overflow-hidden">
-          <div className="ndl-marq-up flex flex-col">
+          <div className={`ndl-marq-up flex flex-col ${paused}`}>
             {[...colA, ...colA].map((m, i) => <MetricTile key={i} {...m} />)}
           </div>
         </div>
         <div className="overflow-hidden">
-          <div className="ndl-marq-down flex flex-col">
+          <div className={`ndl-marq-down flex flex-col ${paused}`}>
             {[...colB, ...colB].map((m, i) => <MetricTile key={i} {...m} />)}
           </div>
         </div>
@@ -137,157 +99,123 @@ function ColumnsVisual() {
   )
 }
 
-// ── Box 2 — cumulative budget-saved area chart ─────────────────────────────
-const AREA = [30, 34, 40, 44, 55, 60, 72, 86]
-function AreaVisual() {
-  const W = 220, H = 120, P = 8
-  const iw = W - P * 2
-  const ih = H - P * 2
-  const x = (i: number) => P + (i / (AREA.length - 1)) * iw
-  const y = (v: number) => P + (1 - v / 100) * ih
-  const line = "M " + AREA.map((v, i) => `${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" L ")
-  const area =
-    `M ${x(0).toFixed(1)} ${(H - P).toFixed(1)} ` +
-    AREA.map((v, i) => `L ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ") +
-    ` L ${x(AREA.length - 1).toFixed(1)} ${(H - P).toFixed(1)} Z`
+// ── Box 2 — AI adoption across business, McKinsey State of AI ──────────────
+type Point = { year: string; value: number }
+
+const ADOPTION: Point[] = [
+  { year: "'19", value: 58 },
+  { year: "'20", value: 50 },
+  { year: "'21", value: 56 },
+  { year: "'22", value: 50 },
+  { year: "'23", value: 55 },
+  { year: "'24", value: 72 },
+  { year: "'25", value: 78 },
+  { year: "Now", value: 88 },
+]
+
+/** Height drives colour: dark violet down low, bright violet at the top — so
+ *  the left-to-right build deepens in shade as it climbs. */
+function barColor(v: number) {
+  const t = Math.min(Math.max((v - 40) / 55, 0), 1)
+  const l = 0.34 + t * 0.38
+  const c = 0.13 + t * 0.09
+  return `oklch(${l.toFixed(3)} ${c.toFixed(3)} 292)`
+}
+
+function AdoptionClimbVisual() {
   return (
-    <div className="h-full w-full rounded-lg bg-black/20 border border-border p-3 flex flex-col">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] text-foreground/45">Cumulative saved</p>
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 text-accent bg-accent/10">
-          <TrendingUp className="w-2.5 h-2.5" /> Up
+    <div className="relative h-full w-full rounded-lg bg-black/20 border border-border p-3 flex flex-col">
+      {/* chart label */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-foreground/50">
+          Businesses using AI
+        </span>
+        <span className="text-[9px] font-semibold uppercase tracking-widest text-emerald-400/80">
+          ↑ 33 pts in 3 yrs
         </span>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full flex-1" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="ndl-area-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.35" />
-            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path className="ndl-area" d={area} fill="url(#ndl-area-fill)" />
-        <path
-          className="ndl-area-line"
-          d={line}
-          fill="none"
-          stroke={ACCENT}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  )
-}
 
-// ── Box 3 — team network / job retention ───────────────────────────────────
-const NODES = [
-  { x: 40, y: 30, c: "#C4B5FD" },
-  { x: 100, y: 20, c: ACCENT },
-  { x: 170, y: 40, c: "#A78BFA" },
-  { x: 60, y: 80, c: "#7C3AED" },
-  { x: 120, y: 75, c: ACCENT },
-  { x: 185, y: 90, c: ACCENT_DEEP },
-  { x: 30, y: 60, c: "#A78BFA" },
-]
-const EDGES: [number, number][] = [
-  [0, 1], [1, 2], [0, 3], [1, 4], [3, 4], [4, 5], [2, 4], [0, 6], [3, 6],
-]
-function NetworkVisual() {
-  return (
-    <div className="h-full w-full rounded-lg bg-black/20 border border-border overflow-hidden">
-      <svg viewBox="0 0 210 110" className="w-full h-full" aria-hidden="true">
-        {EDGES.map(([a, b], i) => (
-          <line
-            key={i}
-            x1={NODES[a].x}
-            y1={NODES[a].y}
-            x2={NODES[b].x}
-            y2={NODES[b].y}
-            stroke="var(--foreground)"
-            strokeOpacity="0.12"
-            strokeWidth="1"
-          />
-        ))}
-        {NODES.map((n, i) => (
-          <g key={i}>
-            <circle cx={n.x} cy={n.y} r="8" fill={n.c} opacity="0.16" />
-            <circle cx={n.x} cy={n.y} r="3.5" fill={n.c} />
-          </g>
-        ))}
-      </svg>
-    </div>
-  )
-}
-
-// ── Box 4 — 24/7 coverage globe ────────────────────────────────────────────
-function GlobeVisual() {
-  return (
-    <div className="h-full w-full rounded-lg bg-black/20 border border-border flex items-center justify-center overflow-hidden relative">
-      <svg viewBox="0 0 160 120" className="w-full h-full" aria-hidden="true">
-        <circle cx="80" cy="60" r="42" fill="none" stroke="var(--foreground)" strokeOpacity="0.12" strokeWidth="1" />
-        <ellipse cx="80" cy="60" rx="42" ry="14" fill="none" stroke="var(--foreground)" strokeOpacity="0.1" strokeWidth="1" />
-        <ellipse cx="80" cy="60" rx="42" ry="30" fill="none" stroke="var(--foreground)" strokeOpacity="0.08" strokeWidth="1" />
-        <ellipse cx="80" cy="60" rx="14" ry="42" fill="none" stroke="var(--foreground)" strokeOpacity="0.1" strokeWidth="1" />
-        <ellipse cx="80" cy="60" rx="30" ry="42" fill="none" stroke="var(--foreground)" strokeOpacity="0.08" strokeWidth="1" />
-        <path d="M52 82 Q 80 20 110 44" fill="none" stroke={ACCENT} strokeWidth="1.5" strokeDasharray="3 3" />
-        <circle cx="52" cy="82" r="3.5" fill={ACCENT} />
-        <circle cx="110" cy="44" r="3.5" fill={ACCENT} />
-        <circle cx="96" cy="86" r="3" fill={ACCENT} opacity="0.7" />
-      </svg>
-      <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 text-accent bg-accent/10">
-        <ShieldCheck className="w-2.5 h-2.5" /> Always on
-      </span>
-    </div>
-  )
-}
-
-// ── Box 5 — error-reduction bars (purple, descending) ──────────────────────
-const BARS_RISING = [34, 46, 40, 58, 52, 70, 64, 82, 96]
-const BARS_DOWN = [96, 84, 76, 62, 54, 46, 38, 30, 22]
-function BarsVisual({ purple = false }: { purple?: boolean }) {
-  const bars = purple ? BARS_DOWN : BARS_RISING
-  return (
-    <div
-      className="h-full w-full rounded-lg border p-3 flex items-end justify-between gap-1.5"
-      style={{
-        background: purple ? "rgba(139,92,246,0.08)" : "rgba(0,0,0,0.2)",
-        borderColor: purple ? "rgba(139,92,246,0.30)" : "var(--border)",
-      }}
-    >
-      {bars.map((h, i) => (
+      {/* plot */}
+      <div className="relative flex-1">
+        {/* gridlines at 25 / 50 / 75 / 100 */}
         <div
-          key={i}
-          className="ndl-bar flex-1 rounded-t"
-          style={{ height: `${h}%`, background: `linear-gradient(to top, ${ACCENT_DEEP}, ${ACCENT})` }}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage: "repeating-linear-gradient(to bottom, oklch(1 0 0 / 0.055) 0 1px, transparent 1px 25%)",
+          }}
         />
-      ))}
+
+        <div className="absolute inset-0 flex items-end gap-1.5 sm:gap-2">
+          {ADOPTION.map((p, i) => {
+            const last = i === ADOPTION.length - 1
+            return (
+              <div key={p.year} className="relative flex-1 h-full flex items-end">
+                {/* value callout on the newest reading only — charts label
+                    endpoints, not every bar */}
+                {last && (
+                  <span
+                    className="ndl-cap absolute left-1/2 -translate-x-1/2 z-10 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-foreground"
+                    style={{ bottom: `calc(${p.value}% + 6px)` }}
+                  >
+                    {p.value}%
+                  </span>
+                )}
+                <span
+                  className="ndl-bar w-full rounded-t-[3px] origin-bottom"
+                  style={{
+                    height: `${p.value}%`,
+                    background: `repeating-linear-gradient(135deg, rgba(255,255,255,0.13) 0 1.5px, transparent 1.5px 4px), linear-gradient(to top, oklch(0.26 0.09 292), ${barColor(p.value)})`,
+                    boxShadow: last ? `0 0 16px -2px ${barColor(p.value)}` : "none",
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* year axis */}
+      <div className="mt-2 flex gap-1.5 sm:gap-2">
+        {ADOPTION.map((p, i) => (
+          <span
+            key={p.year}
+            className={`flex-1 text-center text-[9px] tabular-nums ${
+              i === ADOPTION.length - 1 ? "font-bold text-foreground/70" : "text-foreground/35"
+            }`}
+          >
+            {p.year}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
 
-function renderVisual(box: Box) {
-  switch (box.visual) {
-    case "columns": return <ColumnsVisual />
-    case "area": return <AreaVisual />
-    case "network": return <NetworkVisual />
-    case "globe": return <GlobeVisual />
-    case "bars": return <BarsVisual purple={!!box.purple} />
-  }
-}
+// ── Cards ──────────────────────────────────────────────────────────────────
 
-function Card({ box }: { box: Box }) {
+function Card({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
-    <div className={`ndl-card p-4 sm:p-5 flex flex-col ${box.purple ? "ndl-purple" : "glass-card"}`}>
-      <div className={`${box.tall ? "h-64 sm:h-80" : "h-40 sm:h-44"} mb-5`}>{renderVisual(box)}</div>
-      <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-foreground">{box.title}</h3>
-      <p className="text-sm text-foreground/55 mt-2 leading-relaxed">{box.sub}</p>
+    <div className="ndl-card glass-card p-4 sm:p-5 flex flex-col">
+      <div className="h-64 sm:h-80 mb-5">{children}</div>
+      <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-foreground">{title}</h3>
+      <p className="text-sm text-foreground/55 mt-2 leading-relaxed">{sub}</p>
     </div>
   )
 }
 
 export function NumbersDontLie() {
   const sectionRef = useRef<HTMLElement>(null)
+  const [visible, setVisible] = useState(true)
+
+  // Pause the looping metric marquee while the section is off-screen.
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -295,78 +223,104 @@ export function NumbersDontLie() {
     const ctx = gsap.context(() => {
       gsap.fromTo(".ndl-header",
         { opacity: 0, y: 40 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out",
+        { opacity: 1, y: 0, stagger: 0.1, duration: 0.8, ease: "power3.out",
           scrollTrigger: { trigger: sectionRef.current, start: "top 80%" } })
 
       gsap.utils.toArray<HTMLElement>(".ndl-card").forEach((card, i) => {
         gsap.fromTo(card,
           { opacity: 0, y: 40 },
-          { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: (i % 3) * 0.08,
+          { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: i * 0.1,
             clearProps: "transform",
             scrollTrigger: { trigger: card, start: "top 90%", toggleActions: "play none none none" } })
       })
 
       if (reduce) return
 
-      gsap.utils.toArray<HTMLElement>(".ndl-bar").forEach((bar) => {
-        gsap.fromTo(bar,
-          { scaleY: 0 },
-          { scaleY: 1, transformOrigin: "bottom", duration: 0.8, ease: "power3.out",
-            scrollTrigger: { trigger: bar, start: "top 95%", toggleActions: "play none none none" } })
-      })
+      // The chart builds once, left to right, then holds.
+      gsap.fromTo(".ndl-bar",
+        { scaleY: 0 },
+        {
+          scaleY: 1, duration: 0.55, ease: "power3.out", stagger: 0.09,
+          scrollTrigger: { trigger: ".ndl-bar", start: "top 92%", toggleActions: "play none none none" },
+        })
 
-      gsap.utils.toArray<SVGPathElement>(".ndl-area-line").forEach((path) => {
-        const len = path.getTotalLength()
-        gsap.set(path, { strokeDasharray: len, strokeDashoffset: len })
-        gsap.to(path, { strokeDashoffset: 0, duration: 1.6, ease: "power2.inOut",
-          scrollTrigger: { trigger: path, start: "top 90%" } })
-      })
+      gsap.fromTo(".ndl-cap",
+        { opacity: 0, y: 8 },
+        {
+          opacity: 1, y: 0, duration: 0.4, ease: "power2.out", delay: 0.85,
+          scrollTrigger: { trigger: ".ndl-bar", start: "top 92%", toggleActions: "play none none none" },
+        })
     }, sectionRef)
 
     return () => { try { ctx.revert() } catch (_) {} }
   }, [])
 
-  return (
-    <section ref={sectionRef} className="py-24 sm:py-32 px-4 sm:px-6 border-t border-border">
-      <div className="max-w-7xl mx-auto">
-        <h2 className="ndl-header text-center text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance mb-14 sm:mb-16">
-          The Numbers <span className="gradient-text">Don&apos;t Lie.</span>
-        </h2>
+  const paused = visible ? "" : "[animation-play-state:paused]"
 
-        {/* Static grid — row 1: 2 boxes, row 2: 3 boxes */}
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <Card box={BOXES.time} />
-            <Card box={BOXES.budget} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Card box={BOXES.jobs} />
-            <Card box={BOXES.coverage} />
-            <Card box={BOXES.errors} />
-          </div>
+  return (
+    <section
+      id="results"
+      ref={sectionRef}
+      data-anim={visible ? "on" : "off"}
+      className="scroll-mt-28 py-24 sm:py-32 px-4 sm:px-6 border-t border-border"
+    >
+      <div className="max-w-7xl mx-auto">
+
+        <div className="text-center mb-8 sm:mb-10">
+          <h2 className="ndl-header text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance">
+            The Numbers <span className="gradient-text">Don&apos;t Lie.</span>
+          </h2>
+          <p className="ndl-header mt-4 text-sm text-foreground/45 max-w-xl mx-auto leading-relaxed">
+            Published industry research — not our estimates.
+          </p>
         </div>
+
+        {/* Highlighted callout — emphasis without competing with the heading */}
+        <div className="ndl-header mx-auto mb-10 sm:mb-12 max-w-2xl rounded-xl border border-accent/25 bg-accent/[0.07] border-l-2 border-l-accent px-5 py-4 sm:px-6 sm:py-5">
+          <p className="text-base sm:text-lg font-bold tracking-tight text-foreground">
+            Don&apos;t be in the{" "}
+            <span className="rounded bg-accent/20 px-1.5 py-0.5 text-accent">last 12%.</span>
+          </p>
+          <p className="mt-2 text-sm text-foreground/55 leading-relaxed">
+            88% of businesses already run AI in production. The gap compounds every quarter — and
+            closing it later always costs more than opening it now.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card
+            title="$3.70 Back for Every $1 Put Into AI"
+            sub="Measured across 4,000+ businesses already running AI in production. The return stopped being theoretical some time ago."
+          >
+            <MetricsVisual paused={paused} />
+          </Card>
+
+          <Card
+            title="From 55% to 88% in Three Years"
+            sub="AI adoption sat flat near half the market for five years, then broke. Most of the movement happened after 2023 — which is why the cost of waiting is rising, not falling."
+          >
+            <AdoptionClimbVisual />
+          </Card>
+        </div>
+
+        <p className="mt-8 text-center text-xs text-foreground/35 leading-relaxed">
+          Sources: McKinsey <em>State of AI</em> (2019–2025) · IDC / Microsoft{" "}
+          <em>AI Opportunity Study</em> · Federal Reserve Bank of St. Louis
+        </p>
       </div>
 
       <style>{`
-        .ndl-purple {
-          background: linear-gradient(160deg, rgba(139,92,246,0.20), rgba(109,40,217,0.05));
-          border: 1px solid rgba(139,92,246,0.40);
-          border-radius: 12px;
-          transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-        }
-        .ndl-purple:hover {
-          border-color: rgba(139,92,246,0.75);
-          transform: translateY(-4px);
-          box-shadow: 0 20px 45px -22px rgba(139,92,246,0.45);
-        }
-        /* First box — column 1 scrolls up, column 2 scrolls down (seamless) */
+        /* Metric marquee — column 1 up, column 2 down */
         @keyframes ndl-marq-up   { from { transform: translateY(0);    } to { transform: translateY(-50%); } }
         @keyframes ndl-marq-down { from { transform: translateY(-50%); } to { transform: translateY(0);    } }
         .ndl-marq-up   { animation: ndl-marq-up   18s linear infinite; will-change: transform; }
         .ndl-marq-down { animation: ndl-marq-down 18s linear infinite; will-change: transform; }
+        /* Must come after the shorthand above — the shorthand resets
+           animation-play-state, so a utility class on the element loses. */
+        [data-anim="off"] .ndl-marq-up,
+        [data-anim="off"] .ndl-marq-down { animation-play-state: paused; }
+
         @media (prefers-reduced-motion: reduce) {
-          .ndl-purple { transition: border-color 0.2s ease; }
-          .ndl-purple:hover { transform: none; }
           .ndl-marq-up, .ndl-marq-down { animation: none; }
         }
       `}</style>

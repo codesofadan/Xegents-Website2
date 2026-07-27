@@ -20,7 +20,7 @@ export function FinalCTA() {
     <section
       id="booking-section"
       ref={sectionRef}
-      className="py-20 sm:py-28 px-4 sm:px-6 border-t border-border bg-black/30"
+      className="scroll-mt-28 py-20 sm:py-28 px-4 sm:px-6 border-t border-border bg-black/30"
     >
       <div className="max-w-5xl mx-auto">
         <div className={`transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>

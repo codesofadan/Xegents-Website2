@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import Link from "next/link"
+import { scrollToSection } from "@/lib/scroll"
 
 // Lazy, client-only so `three` never blocks first paint (protects LCP).
 const AuroraBackground = dynamic(
@@ -53,9 +54,13 @@ function StatCounter({ value, label }: { value: string; label: string }) {
   }, [value])
 
   return (
-    <div ref={ref} className="text-center py-6 px-4">
-      <p className="text-3xl sm:text-4xl font-black text-foreground tabular-nums">{display}</p>
-      <p className="text-[11px] text-foreground/40 mt-1.5 leading-tight uppercase tracking-wide">{label}</p>
+    <div ref={ref} className="text-center py-5 px-2 sm:py-6 sm:px-4">
+      {/* At 390px each of the three cells is ~78px of usable width — text-3xl
+          breaks "8–11×" across two lines. Step the value down on mobile. */}
+      <p className="text-2xl sm:text-4xl font-black text-foreground tabular-nums">{display}</p>
+      <p className="text-[10px] sm:text-[11px] text-foreground/40 mt-1.5 leading-tight uppercase tracking-wide text-balance">
+        {label}
+      </p>
     </div>
   )
 }
@@ -125,13 +130,15 @@ export function Hero() {
         {/* CTAs */}
         <div className="hero-el flex flex-col sm:flex-row items-center justify-center gap-3 mb-20">
           <Link
-            href="/contact"
+            href="/#booking-section"
+            onClick={(e) => { if (scrollToSection("booking-section")) e.preventDefault() }}
             className="px-8 py-3.5 bg-accent text-white rounded-lg text-sm font-semibold w-full sm:w-auto text-center transition-all duration-200 ease-out will-change-transform hover:bg-accent/90 hover:-translate-y-1 hover:scale-[1.04] hover:shadow-[0_16px_38px_-10px] hover:shadow-accent/60 active:translate-y-0 active:scale-100 motion-reduce:transform-none motion-reduce:transition-none"
           >
             Book a Free Discovery Call
           </Link>
           <Link
-            href="/projects"
+            href="/#work"
+            onClick={(e) => { if (scrollToSection("work")) e.preventDefault() }}
             className="px-8 py-3.5 border border-white/12 rounded-lg text-sm font-medium hover:border-white/24 hover:text-white transition-all text-foreground/60 w-full sm:w-auto text-center"
           >
             See Case Studies →

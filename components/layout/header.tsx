@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { siteConfig } from "@/lib/site"
+import { scrollToSection } from "@/lib/scroll"
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const pathname = usePathname()
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50)
@@ -14,14 +18,54 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  const scrollToBooking = () => {
-    const el = document.getElementById("booking-section")
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" })
-    } else {
-      window.location.href = "/#booking-section"
+  // Scroll-spy — a section counts as active once it crosses the middle band of
+  // the viewport, which keeps the indicator stable instead of flickering
+  // between neighbours at section boundaries.
+  useEffect(() => {
+    if (pathname !== "/") {
+      setActiveId(null)
+      return
     }
-    setMenuOpen(false)
+
+    const sections = siteConfig.nav
+      .map((item) => document.getElementById(item.id))
+      .filter((el): el is HTMLElement => el !== null)
+
+    if (!sections.length) return
+
+    const visible = new Set<string>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) visible.add(entry.target.id)
+          else visible.delete(entry.target.id)
+        })
+        // Pick the first in document order so the indicator moves predictably.
+        const next = siteConfig.nav.find((item) => visible.has(item.id))
+        setActiveId(next?.id ?? null)
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    )
+
+    sections.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [pathname])
+
+  const onNavClick = (e: React.MouseEvent, id: string) => {
+    if (pathname !== "/") return // let Next.js navigate to /#id
+    if (scrollToSection(id)) {
+      e.preventDefault()
+      setActiveId(id)
+      setMenuOpen(false)
+    }
+  }
+
+  const onCtaClick = (e: React.MouseEvent) => {
+    if (pathname !== "/") return
+    if (scrollToSection("booking-section")) {
+      e.preventDefault()
+      setMenuOpen(false)
+    }
   }
 
   return (
@@ -35,7 +79,11 @@ export function Header() {
         }`}
       >
         {/* Logo */}
-        <Link href="/" className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-80">
+        <Link
+          href="/"
+          aria-label="Xegents — back to the top"
+          className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
+        >
           <img
             src="/xegents-logo.png"
             alt="Xegents Logo"
@@ -49,32 +97,39 @@ export function Header() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-          {siteConfig.nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group relative inline-block text-sm text-foreground/85 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:text-foreground"
-            >
-              {/* width reserved by an invisible bold copy → zero layout shift when the visible one bolds */}
-              <span className="relative inline-block">
-                <span aria-hidden="true" className="invisible font-semibold">{item.label}</span>
-                <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)]">
-                  {item.label}
+          {siteConfig.nav.map((item) => {
+            const isActive = activeId === item.id
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => onNavClick(e, item.id)}
+                data-active={isActive}
+                aria-current={isActive ? "true" : undefined}
+                className="group relative inline-block text-sm text-foreground/85 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:text-foreground data-[active=true]:text-foreground"
+              >
+                {/* width reserved by an invisible bold copy → zero layout shift when the visible one bolds */}
+                <span className="relative inline-block">
+                  <span aria-hidden="true" className="invisible font-semibold">{item.label}</span>
+                  <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)] group-data-[active=true]:font-semibold">
+                    {item.label}
+                  </span>
                 </span>
-              </span>
-              {/* purple underline shade grows from the centre on hover */}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent transition-[width] duration-300 ease-out group-hover:w-full"
-              />
-            </Link>
-          ))}
+                {/* purple underline shade grows from the centre on hover, and stays for the active section */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent transition-[width] duration-300 ease-out group-hover:w-full group-data-[active=true]:w-full"
+                />
+              </Link>
+            )
+          })}
         </nav>
 
         {/* CTA + mobile toggle */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={scrollToBooking}
+          <Link
+            href="/#booking-section"
+            onClick={onCtaClick}
             className="group relative inline-flex items-center gap-2.5 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-xs sm:text-sm font-semibold text-accent-foreground shadow-[0_6px_20px_-6px] shadow-accent/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-accent/70 flex-shrink-0 whitespace-nowrap"
           >
             <span>Get Started</span>
@@ -87,13 +142,14 @@ export function Header() {
                 <path d="M7 17 17 7" /><path d="M8 7h9v9" />
               </svg>
             </span>
-          </button>
+          </Link>
 
           {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="md:hidden flex flex-col gap-1.5 p-1"
+            className="md:hidden flex h-11 w-11 flex-col items-center justify-center gap-1.5 -mr-2"
             aria-label="Toggle menu"
+            aria-expanded={menuOpen}
           >
             <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "rotate-45 translate-y-2" : ""}`} />
             <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "opacity-0" : ""}`} />
@@ -105,16 +161,26 @@ export function Header() {
       {/* Mobile menu — matching floating card */}
       {menuOpen && (
         <div className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-background/95 backdrop-blur-xl px-3 py-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.75)]">
-          {siteConfig.nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {siteConfig.nav.map((item) => {
+            const isActive = activeId === item.id
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={(e) => onNavClick(e, item.id)}
+                data-active={isActive}
+                aria-current={isActive ? "true" : undefined}
+                className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground data-[active=true]:bg-accent/10 data-[active=true]:text-foreground transition-colors"
+              >
+                {item.label}
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full bg-accent opacity-0 data-[active=true]:opacity-100"
+                  data-active={isActive}
+                />
+              </Link>
+            )
+          })}
         </div>
       )}
     </header>

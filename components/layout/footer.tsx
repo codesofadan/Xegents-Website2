@@ -106,6 +106,7 @@ export function Footer() {
                 href="https://xegents.com"
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Xegents — opens xegents.com in a new tab"
                 className="inline-block opacity-100 transition-opacity"
               >
                 <img
@@ -142,18 +143,20 @@ export function Footer() {
 
             {/* Right section - Contact */}
             <div className={`space-y-3 flex-shrink-0 transition-all duration-700 delay-100 ${reveal}`}>
-              <h4 className="text-xs font-medium text-foreground uppercase tracking-wider">Contact</h4>
-              <div className="space-y-2 flex flex-col">
+              {/* h3, not h4 — the nearest heading above is an h2, and skipping
+                  a level breaks the document outline for screen readers. */}
+              <h3 className="text-xs font-medium text-foreground uppercase tracking-wider">Contact</h3>
+              <div className="flex flex-col">
                 <a
                   href="mailto:business.zainsaeed@gmail.com"
-                  className="flex items-center gap-2 text-xs sm:text-sm text-foreground hover:text-foreground transition-colors"
+                  className="flex min-h-11 items-center gap-2 text-xs sm:text-sm text-foreground/80 hover:text-foreground transition-colors"
                 >
                   <MailIcon />
                   <span>business.zainsaeed@gmail.com</span>
                 </a>
                 <a
                   href="tel:+923088040606"
-                  className="flex items-center gap-2 text-xs sm:text-sm text-foreground/80 hover:text-foreground transition-colors"
+                  className="flex min-h-11 items-center gap-2 text-xs sm:text-sm text-foreground/80 hover:text-foreground transition-colors"
                 >
                   <PhoneIcon />
                   <span>+92 308 804 0606</span>
@@ -208,8 +211,9 @@ export function Footer() {
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2.5 rounded-lg text-foreground/70 hover:text-foreground transition-colors"
+                    className="grid h-11 w-11 place-items-center rounded-lg text-foreground/70 hover:text-foreground transition-colors"
                     title={social.label}
+                    aria-label={social.label}
                   >
                     <Icon />
                   </a>

@@ -68,6 +68,14 @@
   html {
     color-scheme: dark;
     scroll-behavior: auto;
+    /* `clip`, not `hidden`. `overflow-x: hidden` turns the element into a
+       scroll container: the bar is invisible but the box can still be scrolled
+       sideways programmatically — an anchor jump to anything overhanging the
+       viewport shifts the whole page right with no way to scroll back. `clip`
+       cuts the overflow without ever becoming scrollable, and unlike `hidden`
+       it does not force the other axis to `auto`, so it leaves Lenis and any
+       sticky positioning alone. */
+    overflow-x: clip;
   }
 
   body {
@@ -89,7 +97,7 @@
         oklch(0.24 0.13 292 / 0.12) 0%, transparent 55%);
     background-attachment: fixed;
     letter-spacing: -0.01em;
-    overflow-x: hidden;
+    overflow-x: clip;
     font-feature-settings: "ss01", "cv01";
   }
 

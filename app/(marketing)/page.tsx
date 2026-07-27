@@ -4,11 +4,13 @@ import { VideoShowcase } from "@/components/sections/video-showcase"
 import { TapeMarquee } from "@/components/sections/tape-marquee"
 import { NumbersDontLie } from "@/components/sections/numbers-dont-lie"
 import { ServicesPreview } from "@/components/sections/services-preview"
+import { ParentCompany } from "@/components/sections/parent-company"
+import { GroupCompanies } from "@/components/sections/group-companies"
+import { GlobalFootprint } from "@/components/sections/global-footprint"
 import { ProjectsMarquee } from "@/components/sections/projects-marquee"
 import { Testimonials } from "@/components/sections/testimonials"
 import { FounderSection } from "@/components/sections/founder-section"
 import { TechStack } from "@/components/sections/tech-stack"
-import { FAQ } from "@/components/sections/faq"
 import { FinalCTA } from "@/components/sections/final-cta"
 
 export default function Home() {
@@ -17,14 +19,16 @@ export default function Home() {
       <Hero />
       <TapeMarquee />
       <ProblemSection />
-      <VideoShowcase />
-      <NumbersDontLie />
       <ServicesPreview />
+      <ParentCompany />
+      <GlobalFootprint />
+      <NumbersDontLie />
+      <GroupCompanies />
       <ProjectsMarquee />
       <Testimonials />
+      <VideoShowcase />
       <FounderSection />
       <TechStack />
-      <FAQ />
       <FinalCTA />
     </main>
   )

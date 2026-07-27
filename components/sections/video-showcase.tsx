@@ -32,20 +32,83 @@ const VIDEOS: VideoItem[] = [
   { src: "/videos/demo-6.mp4", title: "Client Results",  caption: "Real outcomes, on camera"   },
 ]
 
+/* THE LOOP NEEDS SOMEWHERE INVISIBLE TO GO AROUND THE BACK.
+
+   Six cards filling seven visible slots left nowhere, so every step forced one
+   card to leap from rel −3 to rel +2 — five positions across the whole stage,
+   which CSS then animated as a slide. That was the card seen "cutting".
+
+   Rendering the set twice gives the arc twelve slots. The wrap now lands at
+   ±6, well past the fade and fully transparent, so no card ever jumps while
+   it can be seen. Only the focused slot ever plays, so the duplicate video
+   elements cost a metadata fetch and nothing more. */
+const SLOTS = [...VIDEOS, ...VIDEOS]
+
+/* SUPERSAMPLING — why the cards looked soft.
+
+   A 3D transform plus backface-visibility promotes every card to its own
+   composited layer, and that layer is rasterised ONCE at the element's layout
+   size. Perspective then stretches it up to 1.27× on the outer positions, so a
+   270px-wide bitmap gets blown up to 343px on screen. The source clips are
+   1080×1920 — four times what we display — so none of that blur came from the
+   files.
+
+   The card is therefore laid out 1.5× larger and scaled back down inside the
+   transform. Display size is unchanged; the raster behind it is now 405px wide
+   and gets downsampled instead of stretched. Overlay sizes are multiplied by
+   the same factor so the counter-scale doesn't shrink the type. */
+const SS = 1.5
+
 const CARD_ASPECT  = "9 / 16"
-const AUTO_ADVANCE = true
+const AUTO_ADVANCE = false // static set — a finished clip does not pull the next one in
 const TRANSITION   = "transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.55s ease"
 
-type Dims = { theta: number; radius: number; step: number; cardH: number; reduced: boolean }
+/* ────────────────────────────────────────────────────────────────────────────
+   CONCAVE ARC — the row curves *toward* the viewer.
 
+   A convex cylinder (translateZ negative, rotateY +a) pushes the side cards
+   away: they shrink, turn outward, and have to be faded off. That hides most
+   of the work.
+
+   Flipping both signs turns the arc inside out. Side cards come forward, so
+   perspective makes them LARGER, and they rotate inward so the row reads as a
+   wall wrapping around you. Every card stays at full opacity and the outermost
+   pair bleeds off the edges of the viewport.
+
+   `turn` damps the rotation independently of the spacing angle: at the outer
+   position the card sits ~51° rather than a near-edge-on 78°, so its artwork
+   is still readable.
+──────────────────────────────────────────────────────────────────────────── */
+type Dims = {
+  theta: number   // degrees between adjacent cards
+  radius: number  // circle radius — depth is locked to this
+  turn: number    // 1 = card sits tangent to the circle
+  step: number    // px of drag per card
+  cardH: number
+  reduced: boolean
+}
+
+/* A TRUE CIRCLE, NOT A FLATTENED ONE.
+
+   Depth used to be about half the radius, which traces an ellipse squashed
+   along z — the row reads as a shallow crease rather than a curve. Depth is
+   now locked to the radius (x = R·sin a, z = R·(1 − cos a)), so every card
+   sits on a real circle. At θ = 22° the outer pair travels 0.59·R toward the
+   viewer, double the old 0.29·R.
+
+   RADIUS IS SIZED FROM THE *PROJECTED* POSITION, not the raw one. Perspective
+   multiplies x by the same factor it scales the card, so a card at z = 415px
+   under a 2200px perspective lands 23% further out than sin(a)·R suggests.
+   Sizing off the raw value threw the outer pair clean off a 1600px viewport.
+
+   `turn` is held just under 1: fully tangent cards foreshorten to cos(66°) —
+   about a third of their width — which reads as slivers rather than work. */
 function computeDims(w: number, reduced: boolean): Dims {
-  // theta: degrees between adjacent cards on the circle
-  // radius: cylinder radius in px — bigger → more spread out
-  // step: how many px of drag = 1 card step
-  // cardH: card height in px
-  if (w < 640)  return { theta: 38, radius: 210, step: 140, cardH: Math.min(w * 1.1, 360), reduced }
-  if (w < 1024) return { theta: 40, radius: 360, step: 230, cardH: 420, reduced }
-  return                { theta: 38, radius: 480, step: 300, cardH: 480, reduced }
+  if (w < 640)
+    return { theta: 22, radius: 380, turn: 0.9, step: 130, cardH: Math.min(w * 0.92, 330), reduced }
+  if (w < 1024)
+    return { theta: 22, radius: 560, turn: 0.9, step: 210, cardH: 400, reduced }
+  return   { theta: 22, radius: 780, turn: 0.9, step: 280, cardH: 480, reduced }
 }
 
 const mod      = (n: number, m: number) => ((n % m) + m) % m
@@ -54,6 +117,13 @@ const wrapRel  = (raw: number, N: number) => raw - N * Math.round(raw / N)
 function cardLayout(rel: number, dims: Dims) {
   const absRel = Math.abs(rel)
   let translateX: number, translateZ: number, rotateY: number, scale: number, opacity: number
+
+  // Depth scrim. Everything is at full opacity, so without this the eye has no
+  // anchor — six equally-lit cards read as wallpaper. Dimming by distance is
+  // what makes the focus obvious and the arc feel lit from the front.
+  // Enough separation to establish focus, not so much that the outer cards
+  // stop being work you can see. ±1 ≈ 0.19, ±2 ≈ 0.30, ±3 ≈ 0.41.
+  const dim = absRel < 0.5 ? 0 : Math.min(0.08 + absRel * 0.11, 0.42)
 
   if (dims.reduced) {
     translateX = rel * (dims.radius * 0.7)
@@ -64,40 +134,57 @@ function cardLayout(rel: number, dims: Dims) {
     const a   = rel * dims.theta
     const rad = (a * Math.PI) / 180
     translateX = Math.sin(rad) * dims.radius
-    translateZ = Math.cos(rad) * dims.radius - dims.radius
-    rotateY   = a
-    scale     = 1
-    // Fade out quickly beyond 2 steps so only ~5 cards are ever visible.
-    // Cards beyond 90° (behind the cylinder) get opacity 0.
-    opacity = Math.abs(a) >= 90 ? 0 : Math.max(1 - absRel * 0.22, 0.12)
+    translateZ = (1 - Math.cos(rad)) * dims.radius // same radius → a real circle
+    rotateY    = -a * dims.turn                    // negative → faces inward
+    scale      = 1
+    // Full opacity across the visible arc, then a short fade so the slots
+    // travelling round the back are gone long before they wrap.
+    opacity = absRel <= 3.1 ? 1 : Math.max(0, 1 - (absRel - 3.1) / 0.9)
   }
 
   return {
-    transform:     `translateX(${translateX}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
+    // scale is divided by SS to undo the supersampled layout size. It comes
+    // last in the chain, so it never disturbs the translations before it.
+    transform:     `translateX(${translateX}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale / SS})`,
     opacity,
+    dim:           dims.reduced ? 0 : dim,
+    // Nearest wins, which is also what physically overlaps.
     zIndex:        1000 + Math.round(translateZ),
     pointerEvents: (opacity < 0.12 ? "none" : "auto") as "none" | "auto",
+    // Five of the twelve slots are round the back at any moment. At opacity 0
+    // they still cost a composited layer each; hiding them drops that. Matters
+    // on integrated graphics, where twelve supersampled video layers is a lot.
+    visibility:    (opacity < 0.02 ? "hidden" : "visible") as "hidden" | "visible",
   }
 }
 
-function ChevronIcon({ dir }: { dir: "left" | "right" }) {
+function DoubleChevron({ dir }: { dir: "left" | "right" }) {
   return (
-    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {dir === "left" ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 18 15 12 9 6" />}
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      {dir === "left" ? (
+        <><polyline points="11 18 5 12 11 6" /><polyline points="19 18 13 12 19 6" /></>
+      ) : (
+        <><polyline points="13 18 19 12 13 6" /><polyline points="5 18 11 12 5 6" /></>
+      )}
     </svg>
   )
 }
 
 function PlayIcon() {
   return (
-    <svg className="w-7 h-7 translate-x-[2px]" viewBox="0 0 24 24" fill="currentColor">
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className="translate-x-[2px]"
+      style={{ width: 28 * SS, height: 28 * SS }}
+    >
       <path d="M8 5v14l11-7z" />
     </svg>
   )
 }
 
 export function VideoShowcase() {
-  const N = VIDEOS.length
+  const N = SLOTS.length // 12 — twice the videos, so the wrap happens out of sight
   // Start with card 0 in the centre
   const [active,  setActive]  = useState(0)
   const [playing, setPlaying] = useState<number | null>(null)
@@ -114,7 +201,9 @@ export function VideoShowcase() {
   const rafId   = useRef(0)
   const chain   = useRef(false)
   const cardRefs  = useRef<(HTMLElement | null)[]>([])
+  const scrimRefs = useRef<(HTMLElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const [grabbing, setGrabbing] = useState(false)
 
   const activeIndex = mod(active, N)
 
@@ -162,6 +251,11 @@ export function VideoShowcase() {
       el.style.opacity       = String(s.opacity)
       el.style.zIndex        = String(s.zIndex)
       el.style.pointerEvents = s.pointerEvents
+      el.style.visibility    = s.visibility
+      // The scrim has to track the drag too, or the lighting snaps at the end
+      // of the gesture instead of following the cards.
+      const sc = scrimRefs.current[i]
+      if (sc) sc.style.opacity = String(s.dim)
     }
   }, [N])
 
@@ -171,10 +265,22 @@ export function VideoShowcase() {
     setPlaying(null)
   }, [])
 
-  const step    = useCallback((delta: number) => { stopPlayback(); setActive(a => a + delta) }, [stopPlayback])
-  const goToIndex = useCallback((j: number) => {
+  const step = useCallback((delta: number) => { stopPlayback(); setActive(a => a + delta) }, [stopPlayback])
+
+  /** Each video now lives in two slots — go to whichever is fewer steps away,
+   *  so a dot never sends the arc the long way round. */
+  const goToIndex = useCallback((videoIdx: number) => {
     stopPlayback()
-    setActive(a => a + wrapRel(j - mod(a, N), N))
+    setActive(a => {
+      const cur = mod(a, N)
+      let best = 0
+      let bestDist = Infinity
+      for (let s = videoIdx; s < N; s += VIDEOS.length) {
+        const d = wrapRel(s - cur, N)
+        if (Math.abs(d) < bestDist) { bestDist = Math.abs(d); best = d }
+      }
+      return a + best
+    })
   }, [N, stopPlayback])
 
   const toggleVideo = (i: number) => {
@@ -200,8 +306,10 @@ export function VideoShowcase() {
   const onPointerDown = (e: React.PointerEvent) => {
     if (playingRef.current !== null) return
     dragging.current = true; didDrag.current = false; dragDX.current = 0
+    setGrabbing(true)
     startX.current = e.clientX
     for (const el of cardRefs.current) if (el) { el.style.transition = "none"; el.style.willChange = "transform" }
+    for (const el of scrimRefs.current) if (el) el.style.transition = "none"
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging.current) return
@@ -221,10 +329,12 @@ export function VideoShowcase() {
   const endDrag = (e: React.PointerEvent) => {
     if (!dragging.current) return
     dragging.current = false
+    setGrabbing(false)
     if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = 0 }
     const steps = Math.round(dragDX.current / dimsRef.current.step)
     dragDX.current = 0
     for (const el of cardRefs.current) if (el) { el.style.transition = TRANSITION; el.style.willChange = "auto" }
+    for (const el of scrimRefs.current) if (el) el.style.transition = "opacity 0.55s ease"
     if (steps !== 0) setActive(a => a - steps)
     else paint(activeRef.current)
   }
@@ -240,14 +350,16 @@ export function VideoShowcase() {
     if (e.key === "ArrowRight") { e.preventDefault(); step(1)  }
   }
 
-  const stageH = Math.round(dims.cardH * 1.18)
+  // The outer pair is scaled ~1.18 by perspective, so the stage needs headroom
+  // above and below or the section's overflow-hidden crops them.
+  const stageH = Math.round(dims.cardH * (dims.reduced ? 1.18 : 1.38))
   // Card width from the aspect ratio
   const cardW  = Math.round(dims.cardH * (9 / 16))
 
   return (
     <section
       id="video-showcase"
-      className="relative overflow-hidden pt-8 sm:pt-10 pb-20 sm:pb-28 border-t border-border"
+      className="relative overflow-hidden pt-24 sm:pt-32 pb-20 sm:pb-28 border-t border-border"
       style={{ transform: "translateZ(0)", isolation: "isolate" }}
     >
       {/* Header */}
@@ -266,7 +378,8 @@ export function VideoShowcase() {
       {/* Stage — full width so side cards have room */}
       <div
         className="relative w-full select-none touch-pan-y"
-        style={{ perspective: "2200px", height: stageH, cursor: "default" }}
+        /* The label says "drag to scroll" — the cursor should say it too. */
+        style={{ perspective: "2200px", height: stageH, cursor: grabbing ? "grabbing" : "grab" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
@@ -283,21 +396,24 @@ export function VideoShowcase() {
           className="absolute inset-0 flex items-center justify-center"
           style={{ transformStyle: "preserve-3d" }}
         >
-          {VIDEOS.map((v, i) => {
+          {SLOTS.map((v, i) => {
             const base      = cardLayout(wrapRel(i - active, N), dims)
             const isCenter  = i === activeIndex
             const isPlaying = playing === i
 
             return (
               <article
-                key={v.src}
+                key={i}
                 ref={el => { cardRefs.current[i] = el }}
                 onClick={() => onCardClick(i)}
+                onDragStart={(e) => e.preventDefault()}
+                draggable={false}
                 aria-label={v.title}
                 style={{
                   position:         "absolute",
-                  height:           dims.cardH,
-                  width:            cardW,
+                  // laid out SS× large, scaled back down in the transform
+                  height:           dims.cardH * SS,
+                  width:            cardW * SS,
                   // ↓ rounded-sm (4px) — small enough that the scalloped
                   //   silhouette disappears; sharp enough to look intentional.
                   borderRadius:     "6px",
@@ -306,8 +422,12 @@ export function VideoShowcase() {
                   opacity:          base.opacity,
                   zIndex:           base.zIndex,
                   pointerEvents:    base.pointerEvents,
+                  visibility:       base.visibility,
                   transition:       TRANSITION,
                   backfaceVisibility: "hidden",
+                  WebkitUserSelect: "none",
+                  userSelect:       "none",
+                  touchAction:      "pan-y",
                   // Centre card gets a purple ambient glow; side cards a dark shadow
                   boxShadow: isCenter
                     ? "0 28px 60px -24px oklch(0.60 0.22 292 / 0.60), 0 8px 24px -12px rgba(0,0,0,0.8)"
@@ -324,41 +444,78 @@ export function VideoShowcase() {
                   ref={el => { videoRefs.current[i] = el }}
                   src={v.src}
                   playsInline
-                  preload={Math.abs(wrapRel(i - active, N)) <= 1 ? "metadata" : "none"}
+                  /* Inert until it is actually playing. A <video> under the
+                     cursor otherwise takes the pointer itself and lets the
+                     browser start a native element drag — the ghost image
+                     fights the carousel's own pointer handling, which is the
+                     flicker. The article above it owns click and drag; the
+                     video only takes events back when it has real controls. */
+                  style={{ pointerEvents: isPlaying ? "auto" : "none" }}
+                  onDragStart={(e) => e.preventDefault()}
+                  /* Every card in the arc is on screen now, not just the middle
+                     three — so they all need metadata to paint a first frame.
+                     Metadata is a few KB each; the 27MB of video still only
+                     downloads on play. */
+                  preload={Math.abs(wrapRel(i - active, N)) <= 3 ? "metadata" : "none"}
                   controls={isPlaying}
                   onEnded={onVideoEnded}
                   className="absolute inset-0 h-full w-full object-cover"
                   draggable={false}
                 />
 
+                {/* Depth scrim — sits above the video, below the UI. */}
+                <div
+                  ref={el => { scrimRefs.current[i] = el }}
+                  aria-hidden="true"
+                  className="vs-scrim pointer-events-none absolute inset-0 bg-black"
+                  style={{ opacity: base.dim, transition: "opacity 0.55s ease" }}
+                />
+
                 {/* Play overlay — hidden while playing */}
                 {!isPlaying && (
                   <>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
+                    {/* Legibility scrim — on every card now, since every card
+                        carries a title. Eased back on the unfocused ones so it
+                        doesn't stack with the depth scrim and crush them. */}
+                    <div
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent transition-opacity duration-500"
+                      style={{ opacity: isCenter ? 1 : 0.7 }}
+                    />
 
-                    {/* Play button — only on centre card */}
+                    {/* Play affordance stays on the focused card only — a side
+                        card doesn't play, it centres. */}
                     {isCenter && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_32px_-4px_rgba(147,51,234,0.7)] transition-transform duration-200 hover:scale-105 active:scale-95">
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span
+                          className="flex items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_48px_-6px_rgba(147,51,234,0.7)]"
+                          style={{ height: 64 * SS, width: 64 * SS }}
+                        >
                           <PlayIcon />
                         </span>
                       </div>
                     )}
 
-                    {/* Side card: dimmer play hint */}
-                    {!isCenter && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white/70">
-                          <svg className="w-4 h-4 translate-x-[1px]" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Caption */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <p className="text-sm font-semibold text-white leading-tight">{v.title}</p>
+                    {/* Title on EVERY card. Hierarchy comes from weight and
+                        opacity rather than from hiding it — the caption stays
+                        on the focused card so the arc doesn't turn into six
+                        competing paragraphs. */}
+                    <div
+                      className="pointer-events-none absolute bottom-0 left-0 right-0 transition-opacity duration-500"
+                      style={{ padding: 16 * SS, opacity: isCenter ? 1 : 0.78 }}
+                    >
+                      <p
+                        className="font-semibold text-white leading-tight"
+                        style={{ fontSize: 14 * SS }}
+                      >
+                        {v.title}
+                      </p>
                       {v.caption && (
-                        <p className="text-xs text-white/55 leading-tight mt-0.5">{v.caption}</p>
+                        <p
+                          className="text-white/55 leading-tight transition-opacity duration-500"
+                          style={{ fontSize: 12 * SS, marginTop: 2 * SS, opacity: isCenter ? 1 : 0 }}
+                        >
+                          {v.caption}
+                        </p>
                       )}
                     </div>
                   </>
@@ -368,39 +525,60 @@ export function VideoShowcase() {
           })}
         </div>
 
-        {/* Left/right edge fades */}
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[10%] z-[1200]"
-             style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-[10%] z-[1200]"
-             style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
+        {/* Edge fades — wider and held opaque longer, so the outer cards read
+            as the arc continuing past the frame rather than being sliced. */}
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[11%] z-[1200]"
+             style={{ background: "linear-gradient(to right, var(--background) 6%, transparent)" }} />
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-[11%] z-[1200]"
+             style={{ background: "linear-gradient(to left, var(--background) 6%, transparent)" }} />
+
+        {/* Side arrows — sit above the fades, vertically centred on the stage,
+            so the carousel is steerable without reaching for the controls
+            underneath it. */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); step(-1) }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Previous video"
+          className="absolute left-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:left-6 sm:h-14 sm:w-14"
+        >
+          <DoubleChevron dir="left" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); step(1) }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label="Next video"
+          className="absolute right-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:right-6 sm:h-14 sm:w-14"
+        >
+          <DoubleChevron dir="right" />
+        </button>
       </div>
 
-      {/* Controls */}
-      <div className="mt-8 flex items-center justify-center gap-5">
-        <button type="button" onClick={() => step(-1)} aria-label="Previous video"
-          className="grid place-items-center w-11 h-11 rounded-full border border-border text-accent hover:bg-accent/8 transition-colors">
-          <ChevronIcon dir="left" />
-        </button>
-        <span className="text-xs uppercase tracking-widest text-foreground/40 select-none">Drag to scroll</span>
-        <button type="button" onClick={() => step(1)} aria-label="Next video"
-          className="grid place-items-center w-11 h-11 rounded-full border border-border text-accent hover:bg-accent/8 transition-colors">
-          <ChevronIcon dir="right" />
-        </button>
-      </div>
+      {/* Bottom control row removed — the arrows live on the sides of the
+          stage now, and a duplicate pair underneath was both redundant and
+          sitting close enough to the cards to compete for the pointer. */}
 
-      {/* Dot indicators */}
-      <div className="mt-5 flex items-center justify-center gap-2">
+      {/* Dot indicators — the dot stays small, the hit area does not. A bare
+          6×6 button is unusable on a phone; each control is 44px tall with the
+          mark centred inside it. */}
+      <div className="mt-1 flex items-center justify-center">
         {VIDEOS.map((_, i) => (
           <button
             key={i}
             type="button"
             onClick={() => goToIndex(i)}
             aria-label={`Go to video ${i + 1}`}
-            aria-current={i === activeIndex}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === activeIndex ? "w-6 bg-accent" : "w-1.5 bg-foreground/20 hover:bg-foreground/40"
-            }`}
-          />
+            /* twelve slots, six videos — the dot tracks the video, not the slot */
+            aria-current={i === activeIndex % VIDEOS.length}
+            className="grid h-11 w-8 place-items-center"
+          >
+            <span
+              className={`block h-1.5 rounded-full transition-all duration-300 ${
+                i === activeIndex % VIDEOS.length ? "w-6 bg-accent" : "w-1.5 bg-foreground/20"
+              }`}
+            />
+          </button>
         ))}
       </div>
     </section>

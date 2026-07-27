@@ -70,7 +70,7 @@ export function FAQ() {
   }, [])
 
   return (
-    <section className="py-20 sm:py-28 px-4 sm:px-6 relative" id="faq" ref={sectionRef}>
+    <section className="scroll-mt-28 py-20 sm:py-28 px-4 sm:px-6 relative" id="faq" ref={sectionRef}>
       <div className="relative z-10 max-w-3xl mx-auto">
         <div
           className={`text-center mb-14 sm:mb-20 space-y-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}

@@ -12,26 +12,45 @@ export function FounderSection() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(".founder-left",
-        { opacity: 0, x: -50 },
-        {
-          opacity: 1, x: 0, duration: 0.9, ease: "power3.out",
-          scrollTrigger: { trigger: sectionRef.current, start: "top 75%" },
-        }
-      )
-      gsap.fromTo(".founder-right",
-        { opacity: 0, x: 50 },
-        {
-          opacity: 1, x: 0, duration: 0.9, ease: "power3.out", delay: 0.12,
-          scrollTrigger: { trigger: sectionRef.current, start: "top 75%" },
-        }
-      )
+      const mm = gsap.matchMedia()
+
+      // Desktop: the columns sit side by side, so they can slide in from their
+      // own edges.
+      mm.add("(min-width: 1024px)", () => {
+        gsap.fromTo(".founder-left",
+          { opacity: 0, x: -50 },
+          {
+            opacity: 1, x: 0, duration: 0.9, ease: "power3.out", clearProps: "transform",
+            scrollTrigger: { trigger: sectionRef.current, start: "top 75%" },
+          }
+        )
+        gsap.fromTo(".founder-right",
+          { opacity: 0, x: 50 },
+          {
+            opacity: 1, x: 0, duration: 0.9, ease: "power3.out", delay: 0.12, clearProps: "transform",
+            scrollTrigger: { trigger: sectionRef.current, start: "top 75%" },
+          }
+        )
+      })
+
+      // Below that the columns are stacked and full-bleed, so a horizontal
+      // slide has nowhere to come from — it just shoves them past both edges
+      // of the viewport. Rise them instead.
+      mm.add("(max-width: 1023px)", () => {
+        gsap.fromTo([".founder-left", ".founder-right"],
+          { opacity: 0, y: 32 },
+          {
+            opacity: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.1, clearProps: "transform",
+            scrollTrigger: { trigger: sectionRef.current, start: "top 85%" },
+          }
+        )
+      })
     }, sectionRef)
     return () => ctx.revert()
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-24 sm:py-32 px-4 sm:px-6">
+    <section id="about" ref={sectionRef} className="scroll-mt-28 py-24 sm:py-32 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
 
         {/* Photo */}
@@ -77,7 +96,7 @@ export function FounderSection() {
               href="https://www.linkedin.com/in/zainsaeeed/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:gap-3 transition-all"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent hover:gap-3 transition-all"
             >
               Connect on LinkedIn →
             </a>
@@ -85,7 +104,7 @@ export function FounderSection() {
               href="https://www.instagram.com/zainsaeeed/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/50 hover:text-foreground hover:gap-3 transition-all"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground/50 hover:text-foreground hover:gap-3 transition-all"
             >
               Follow on Instagram →
             </a>

@@ -140,7 +140,7 @@ export default function SEOPortalPage() {
 
         <p className="text-center text-xs text-white/25 mt-8">
           Need access?{" "}
-          <a href="/contact" className="text-purple-400 hover:text-purple-300 transition-colors">
+          <a href="/#booking-section" className="text-purple-400 hover:text-purple-300 transition-colors">
             Contact Xegents
           </a>
         </p>

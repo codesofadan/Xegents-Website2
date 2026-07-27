@@ -1,15 +1,83 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
-import Link from "next/link"
 import { projects } from "@/lib/projects-data"
+import { useRevealRail } from "@/hooks/use-reveal-rail"
 
 gsap.registerPlugin(ScrollTrigger)
 
+/* ────────────────────────────────────────────────────────────────────────────
+   PROOF OF WORK — four shipped systems.
+
+   The cards used to open /projects/[id]. The case-study content is compressed
+   into the problem / build pair below and revealed in place, so the site stays
+   a single page.
+
+   Same shared-panel pattern as the services section above: one surface beneath
+   the row that swaps contents, rather than four cells that grow and shove the
+   grid around.
+──────────────────────────────────────────────────────────────────────────── */
+
+type Detail = { problem: string; built: string }
+
+/** Compressed from lib/projects-data.ts — the challenge/solution pair per build. */
+const DETAILS: Record<string, Detail> = {
+  "seo-audit-os": {
+    problem:
+      "Agencies were burning two to three weeks producing audits that prospects had lost interest in by the time they landed. Inconsistent depth, missed checks, and no way to run them at volume.",
+    built:
+      "One command crawls the site, pulls Core Web Vitals, Google Business Profile data, SERP citations and domain authority, then dispatches four parallel agent teams across 660 checks — returning a consulting-grade PDF and a prioritised remediation playbook in under ten minutes.",
+  },
+  "leadgen-system": {
+    problem:
+      "Manual prospecting, one-off outreach emails written from scratch, and replies falling through the cracks. No system, no consistency, nothing that scaled past one person.",
+    built:
+      "A five-module pipeline: lead discovery, intel gathering with a free-value PDF generated per prospect, personalised sequence writing, automated sending, and reply detection — all triggered by slash command, with no always-on cloud service to pay for.",
+  },
+  "blog-os": {
+    problem:
+      "A single 2026-grade SEO article meant hours of SERP research, fact-checking, schema markup, internal linking and manual WordPress upload — multiplied across every client, every week.",
+    built:
+      "A ten-agent editorial pipeline behind one command: SERP research, AIO citation mapping, passage-based drafting, critical editing, fact-checking, image generation, schema bundling, internal-link selection by reranking, and a direct WordPress draft. One run, zero manual steps.",
+  },
+  "copywriting-os": {
+    problem:
+      "Brands needed constant copy — ads, emails, landing pages, VSLs — but every freelancer and tool produced generic output that missed the voice and came back needing heavy rewrites.",
+    built:
+      "A brand-voice system that ingests the founder's existing copy, call transcripts and messaging docs to build a proprietary voice profile, then generates on-brand ads, sequences and pages at scale — with a scoring layer that rejects anything under a 90% voice match.",
+  },
+}
+
+/** Rendered twice so the track can loop seamlessly. */
+const TRACK = [...projects, ...projects]
+
 export function ProjectsMarquee() {
   const sectionRef = useRef<HTMLElement>(null)
+  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
+  const [inView, setInView] = useState(false)
+
+  // activeId is the slot index — each project appears twice in the track and
+  // the rail has to point at the copy actually under the cursor.
+  const active = activeId !== null ? projects[Number(activeId) % projects.length] : null
+  /* DETAILS is an override keyed by project id, and a mistyped key used to
+     blank the whole panel silently — BlogOS shipped empty because its id is
+     "blog-os", not "blogos". Falling back to the project's own challenge and
+     solution means a missing key degrades to the source copy instead of to
+     nothing. */
+  const detail = active
+    ? DETAILS[active.id] ?? { problem: active.challenge, built: active.solution }
+    : null
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -24,18 +92,17 @@ export function ProjectsMarquee() {
         { opacity: 0, y: 36 },
         {
           opacity: 1, y: 0, stagger: 0.09, duration: 0.75, ease: "power3.out",
-          scrollTrigger: { trigger: ".bento-grid", start: "top 82%" },
+          clearProps: "transform",
+          scrollTrigger: { trigger: ".work-viewport", start: "top 85%" },
         }
       )
     }, sectionRef)
     return () => { try { ctx.revert() } catch (_) {} }
   }, [])
 
-  const [p01, p02, p03, p04] = projects
-
   return (
-    <section ref={sectionRef} className="py-24 sm:py-32 border-t border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <section id="work" ref={sectionRef} className="scroll-mt-28 py-24 sm:py-32 px-4 sm:px-6 border-t border-border">
+      <div className="max-w-7xl mx-auto">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-10 sm:mb-14">
@@ -50,115 +117,187 @@ export function ProjectsMarquee() {
           </p>
         </div>
 
-        {/* Bento Grid */}
-        <div className="bento-grid grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        {/* Cards */}
+        {/* All four in one drifting line — halts under the cursor, and the
+            selection clears the moment you leave. */}
+        <div
+          ref={gridRef}
+          className="work-viewport relative overflow-hidden"
+          data-anim={inView ? "on" : "off"}
+          onMouseLeave={() => setActiveId(null)}
+        >
+          <div className="work-track flex w-max gap-4 sm:gap-5">
+          {TRACK.map((p, i) => {
+            const isActive = String(i) === activeId
+            return (
+              <button
+                key={i}
+                type="button"
+                data-reveal-id={String(i)}
+                aria-hidden={i >= projects.length}
+                tabIndex={i >= projects.length ? -1 : 0}
+                onMouseEnter={() => setActiveId(String(i))}
+                onFocus={() => setActiveId(String(i))}
+                onBlur={() => setActiveId(null)}
+                onClick={() => setActiveId(String(i))}
+                aria-expanded={isActive}
+                aria-controls="work-detail"
+                data-active={isActive}
+                className="bento-card glass-card group relative flex w-[320px] shrink-0 flex-col overflow-hidden p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[380px] sm:p-8"
+              >
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-accent/10 blur-3xl opacity-0 transition-opacity duration-500 group-data-[active=true]:opacity-100"
+                />
 
-          {/* 01 — Large featured card (left, 2-col) */}
-          <Link
-            href={`/projects/${p01.id}`}
-            className="bento-card group lg:col-span-2 relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 sm:p-10 flex flex-col min-h-[340px] transition-all duration-500 hover:border-white/15 hover:bg-white/[0.055] hover:shadow-[0_0_50px_-10px_rgba(147,51,234,0.25)]"
-          >
-            {/* Subtle top-left gradient accent */}
-            <div className="pointer-events-none absolute -top-24 -left-24 w-64 h-64 rounded-full bg-accent/10 blur-3xl transition-opacity duration-500 opacity-0 group-hover:opacity-100" />
-
-            <div className="relative flex items-start justify-between mb-auto">
-              <span className="text-xs font-mono text-white/25 tracking-widest">{p01.number}</span>
-              <span className="text-xs font-medium text-white/35 uppercase tracking-wider">{p01.year}</span>
-            </div>
-
-            <div className="relative mt-8 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-white/40">{p01.industry}</p>
-              <h3 className="text-4xl sm:text-5xl font-black tracking-tighter text-white leading-none">{p01.name}</h3>
-              <p className="text-sm sm:text-base text-white/55 leading-relaxed max-w-md">{p01.headline}</p>
-            </div>
-
-            <div className="relative mt-8 pt-6 border-t border-white/[0.08] flex items-center justify-between">
-              <div className="flex flex-wrap gap-3">
-                {p01.results.slice(0, 2).map((r) => (
-                  <span key={r.label} className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-white/70 whitespace-nowrap">
-                    {r.value} {r.label}
+                <div className="relative mb-6 flex items-start justify-between gap-4">
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-accent">
+                    {p.industry}
                   </span>
-                ))}
-              </div>
-              <span className="text-white/25 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-300 text-lg">→</span>
-            </div>
-          </Link>
+                  <span className="select-none text-3xl font-black leading-none text-foreground/10 transition-colors duration-300 group-data-[active=true]:text-accent/25">
+                    {p.number}
+                  </span>
+                </div>
 
-          {/* 02 + 03 — Stacked small cards (right column) */}
-          <div className="flex flex-col gap-4 sm:gap-5 lg:col-span-1">
+                <h3 className="relative mb-3 text-2xl sm:text-3xl font-black tracking-tighter leading-none text-white">
+                  {p.name}
+                </h3>
+                <p className="relative mb-auto text-sm leading-relaxed text-foreground/55">{p.headline}</p>
 
-            {/* 02 */}
-            <Link
-              href={`/projects/${p02.id}`}
-              className="bento-card group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 flex flex-col flex-1 min-h-[155px] transition-all duration-500 hover:border-white/15 hover:bg-white/[0.055] hover:shadow-[0_0_40px_-12px_rgba(147,51,234,0.22)]"
-            >
-              <div className="pointer-events-none absolute -top-16 -right-16 w-44 h-44 rounded-full bg-accent/8 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative flex items-start justify-between mb-auto">
-                <span className="text-xs font-mono text-white/25">{p02.number}</span>
-              </div>
-              <div className="relative mt-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">{p02.industry}</p>
-                <h3 className="text-xl sm:text-2xl font-black tracking-tighter text-white leading-tight">{p02.name}</h3>
-              </div>
-              <div className="relative mt-4 pt-4 border-t border-white/[0.07] flex items-center justify-between">
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/65 whitespace-nowrap">
-                  {p02.results[0].value} {p02.results[0].label}
-                </span>
-                <span className="text-white/25 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all duration-300">→</span>
-              </div>
-            </Link>
-
-            {/* 03 */}
-            <Link
-              href={`/projects/${p03.id}`}
-              className="bento-card group relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 flex flex-col flex-1 min-h-[155px] transition-all duration-500 hover:border-white/15 hover:bg-white/[0.055] hover:shadow-[0_0_40px_-12px_rgba(147,51,234,0.22)]"
-            >
-              <div className="pointer-events-none absolute -bottom-16 -left-16 w-44 h-44 rounded-full bg-accent/8 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative flex items-start justify-between mb-auto">
-                <span className="text-xs font-mono text-white/25">{p03.number}</span>
-              </div>
-              <div className="relative mt-5 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">{p03.industry}</p>
-                <h3 className="text-xl sm:text-2xl font-black tracking-tighter text-white leading-tight">{p03.name}</h3>
-              </div>
-              <div className="relative mt-4 pt-4 border-t border-white/[0.07] flex items-center justify-between">
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-white/65 whitespace-nowrap">
-                  {p03.results[0].value} {p03.results[0].label}
-                </span>
-                <span className="text-white/25 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all duration-300">→</span>
-              </div>
-            </Link>
+                <div className="relative mt-7 flex flex-wrap gap-2 border-t border-border pt-5">
+                  {p.results.slice(0, 2).map((r) => (
+                    <span
+                      key={r.label}
+                      className="whitespace-nowrap rounded-full border border-border bg-white/[0.05] px-2.5 py-1 text-[11px] font-bold text-foreground/70"
+                    >
+                      {r.value} {r.label}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            )
+          })}
           </div>
 
-          {/* 04 — Full-width wide card */}
-          <Link
-            href={`/projects/${p04.id}`}
-            className="bento-card group lg:col-span-3 relative overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-7 sm:p-9 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10 transition-all duration-500 hover:border-white/15 hover:bg-white/[0.055] hover:shadow-[0_0_50px_-10px_rgba(147,51,234,0.22)]"
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16"
+               style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16"
+               style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
+        </div>
+
+        {/* Drawer — same device as the services section above */}
+        <div
+          id="work-detail"
+          role="region"
+          aria-live="polite"
+          className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute top-0 z-10 h-[2px] rounded-full bg-accent transition-all duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+            style={{
+              left: rail.left,
+              width: rail.width,
+              opacity: isOpen ? 1 : 0,
+              boxShadow: "0 0 18px 1px oklch(0.60 0.22 292 / 0.7)",
+            }}
+          />
+
+          <div className="flex min-h-14 items-center px-7 sm:px-9 lg:px-10">
+            {active ? (
+              <p key={active.id} className="reveal-in text-[11px] font-semibold uppercase tracking-widest text-accent">
+                {active.number} — {active.industry}
+              </p>
+            ) : (
+              <p className="flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/35">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
+                Hover a system to read the build
+              </p>
+            )}
+          </div>
+
+          <div
+            className="grid transition-[grid-template-rows] duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+            style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
           >
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-accent/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl" />
+            <div className="overflow-hidden">
+              {active && detail && (
+                <div key={active.id} className="reveal-in grid gap-8 px-7 pb-8 sm:px-9 sm:pb-9 lg:grid-cols-[1fr_1.35fr] lg:gap-14 lg:px-10 lg:pb-10">
+                  <div>
+                    <p className="text-2xl sm:text-3xl font-black tracking-tighter leading-none text-white">
+                      {active.name}
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-foreground/55">{active.headline}</p>
 
-            <div className="relative flex-shrink-0">
-              <p className="text-xs font-mono text-white/25 mb-2">{p04.number}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35 mb-2">{p04.industry}</p>
-              <h3 className="text-3xl sm:text-4xl font-black tracking-tighter text-white leading-none">{p04.name}</h3>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      {active.results.map((r) => (
+                        <span
+                          key={r.label}
+                          className="rounded-full border border-accent/25 bg-accent/10 px-2.5 py-1 text-[11px] font-bold text-accent"
+                        >
+                          {r.value} {r.label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <Link
+                      href="/#booking-section"
+                      className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent transition-all hover:gap-3"
+                    >
+                      Build something like this <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground/35">The problem</p>
+                      <p className="mt-2 text-sm sm:text-base leading-relaxed text-foreground/60">{detail.problem}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground/35">What we built</p>
+                      <p className="mt-2 text-sm sm:text-base leading-relaxed text-foreground/60">{detail.built}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {active.tags.map((t) => (
+                        <span key={t} className="rounded-md border border-border bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-foreground/50">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="relative flex-1 sm:border-l sm:border-white/[0.07] sm:pl-10">
-              <p className="text-sm sm:text-base text-white/55 leading-relaxed">{p04.headline}</p>
-            </div>
-
-            <div className="relative flex-shrink-0 flex flex-wrap gap-3 sm:flex-col sm:items-end">
-              {p04.results.slice(0, 2).map((r) => (
-                <span key={r.label} className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-white/65 whitespace-nowrap">
-                  {r.value} {r.label}
-                </span>
-              ))}
-              <span className="hidden sm:inline text-white/25 group-hover:text-white/60 group-hover:translate-x-1 transition-all duration-300 self-end">→</span>
-            </div>
-          </Link>
-
+          </div>
         </div>
       </div>
+
+      <style>{`
+        .reveal-drawer {
+          background:
+            linear-gradient(to bottom, oklch(0.60 0.22 292 / 0.07), transparent 45%),
+            oklch(0.10 0.010 265);
+        }
+        @keyframes reveal-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes reveal-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.3; transform: scale(0.75); }
+        }
+        @keyframes work-marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        .work-track { animation: work-marq 64s linear infinite; will-change: transform; }
+        /* Declared after the shorthand so it actually wins */
+        .work-viewport:hover .work-track,
+        .work-viewport[data-anim="off"] .work-track { animation-play-state: paused; }
+        .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .reveal-in { animation: none; }
+          .work-track { animation: none; }
+          .reveal-drawer [style*="grid-template-rows"] { transition: none !important; }
+        }
+      `}</style>
     </section>
   )
 }

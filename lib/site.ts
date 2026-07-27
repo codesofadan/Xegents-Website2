@@ -6,12 +6,13 @@ export const siteConfig = {
   url: "https://xegents.com",
   email: "business.zainsaeed@gmail.com",
   phone: "+92 308 804 0606",
+  // Single-page navigation — every item scrolls to a section of the home page.
+  // `id` is the section's DOM id, used both for the anchor and for scroll-spy.
   nav: [
-    { label: "Services", href: "/services" },
-    { label: "Projects", href: "/projects" },
-    { label: "Blog", href: "/blog" },
-    { label: "Free Tools", href: "/lead-magnets" },
-    { label: "Contact", href: "/contact" },
+    { label: "Services",    href: "/#services",        id: "services" },
+    { label: "Affiliation", href: "/#parent-company",  id: "parent-company" },
+    { label: "Work",        href: "/#work",            id: "work" },
+    { label: "About",       href: "/#about",           id: "about" },
   ],
   social: {
     youtube: "https://www.youtube.com/@zainsaeeed",

@@ -1,70 +1,18 @@
 import type { MetadataRoute } from "next"
-import { projects } from "@/lib/projects-data"
-import { posts } from "@/lib/blog-data"
 
 const BASE_URL = "https://xegents.com"
 
+/* The site is a single page. Every former route — /services, /projects,
+   /blog, /contact, /clients, /lead-magnets, /team — now lives as a section or
+   an in-place reveal panel on the home page, so the sitemap lists one URL.
+   Advertising the old paths here would hand Google a list of 404s. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date()
-
-  const staticPages: MetadataRoute.Sitemap = [
+  return [
     {
       url: `${BASE_URL}/`,
-      lastModified,
+      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1.0,
     },
-    {
-      url: `${BASE_URL}/services`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/projects`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/blog`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/contact`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${BASE_URL}/clients`,
-      lastModified,
-      changeFrequency: "monthly",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE_URL}/lead-magnets`,
-      lastModified,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
   ]
-
-  const projectPages: MetadataRoute.Sitemap = projects.map((project) => ({
-    url: `${BASE_URL}/projects/${project.id}`,
-    lastModified,
-    changeFrequency: "monthly",
-    priority: 0.7,
-  }))
-
-  const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
-    url: `${BASE_URL}/blog/${post.slug}`,
-    lastModified,
-    changeFrequency: "monthly",
-    priority: 0.6,
-  }))
-
-  return [...staticPages, ...projectPages, ...blogPages]
 }

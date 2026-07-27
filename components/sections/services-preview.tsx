@@ -1,45 +1,119 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
-import Link from "next/link"
+import { useRevealRail } from "@/hooks/use-reveal-rail"
 
 gsap.registerPlugin(ScrollTrigger)
 
-const SERVICES = [
+/* ────────────────────────────────────────────────────────────────────────────
+   FOUR WAYS AI MOVES YOUR NUMBERS
+
+   The cards used to navigate to /services#anchor. Everything that page carried
+   is compressed into `detail` + `deliverables` below and revealed in place, so
+   the site stays a single page.
+
+   ONE SHARED PANEL, NOT FOUR EXPANDING CELLS. Growing a cell inside a 4-column
+   grid either stretches the whole row — leaving three columns of dead space —
+   or reflows the grid and makes the cards jump. A panel beneath the row is
+   always the same object in the same place; only its contents change. Same
+   device as the group-companies hub, so the page has one language for this.
+──────────────────────────────────────────────────────────────────────────── */
+
+type Service = {
+  id: string
+  icon: string
+  number: string
+  title: string
+  tagline: string
+  detail: string
+  deliverables: string[]
+}
+
+const SERVICES: Service[] = [
   {
+    id: "audit",
     icon: "◎",
     number: "01",
     title: "AI Audit",
     tagline: "Find exactly where AI saves you money.",
-    href: "/services#audit",
+    detail:
+      "We embed with your team, shadow the real workflows, and time every process. Then we show you the maths — what it costs you now, what AI cuts it to, and which fixes pay for themselves first. No slide deck of possibilities; a ranked list with numbers against it.",
+    deliverables: [
+      "AI Opportunity Map ranked by ROI",
+      "Cost-per-process breakdown",
+      "Week-one quick wins",
+      "90-day implementation roadmap",
+    ],
   },
   {
+    id: "automation",
     icon: "⟳",
     number: "02",
     title: "AI Automation",
     tagline: "Replace repetitive work with systems that run themselves.",
-    href: "/services#automation",
+    detail:
+      "We build automation pipelines on n8n, Make and Zapier that connect the tools you already pay for, remove the manual hand-offs between them, and keep running at 3am without anyone watching. Built with the failure paths handled, not just the happy path.",
+    deliverables: [
+      "Multi-tool workflow orchestration",
+      "Error handling & fallback logic",
+      "Real-time monitoring dashboard",
+      "Team training & handover",
+    ],
   },
   {
+    id: "agents",
     icon: "◈",
     number: "03",
     title: "Custom AI Agents",
     tagline: "GPT-powered agents that work inside your business.",
-    href: "/services#agents",
+    detail:
+      "Not generic chatbots. Agents that know your processes, reach your data, and take real actions on their own — scheduling, drafting, qualifying leads, updating the CRM — with a human checkpoint wherever the decision actually matters.",
+    deliverables: [
+      "Agents trained on your own data",
+      "Tool-use & API integration",
+      "Multi-agent coordination",
+      "Human-in-the-loop oversight",
+    ],
   },
   {
+    id: "integration",
     icon: "⊕",
     number: "04",
     title: "System Integration",
     tagline: "Make all your tools talk to each other.",
-    href: "/services#integration",
+    detail:
+      "Your CRM, project tool, billing and comms are isolated islands, and your team is the ferry between them. We connect them with AI middleware so the data moves by itself — no copy-paste, no re-keying, no gaps where things quietly go missing.",
+    deliverables: [
+      "CRM ↔ project tool sync",
+      "Bidirectional data pipelines",
+      "Webhook & API architecture",
+      "Single source of truth",
+    ],
   },
 ]
 
+/** Rendered twice so the track can loop seamlessly. */
+const TRACK = [...SERVICES, ...SERVICES]
+
 export function ServicesPreview() {
   const sectionRef = useRef<HTMLElement>(null)
+  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
+  const [inView, setInView] = useState(false)
+
+  // activeId is the slot index, not the service id — the same service appears
+  // twice in the track and the rail has to point at the copy under the cursor.
+  const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -50,22 +124,20 @@ export function ServicesPreview() {
           scrollTrigger: { trigger: sectionRef.current, start: "top 80%" },
         }
       )
-      gsap.utils.toArray<HTMLElement>(".svc-preview-card").forEach((card, i) => {
-        gsap.fromTo(card,
-          { opacity: 0, y: 40 },
-          {
-            opacity: 1, y: 0, duration: 0.7, ease: "power3.out",
-            delay: i * 0.07,
-            scrollTrigger: { trigger: card, start: "top 85%", toggleActions: "play none none none" },
-          }
-        )
-      })
+      gsap.fromTo(".svc-preview-card",
+        { opacity: 0, y: 40 },
+        {
+          opacity: 1, y: 0, duration: 0.7, ease: "power3.out", stagger: 0.07,
+          clearProps: "transform",
+          scrollTrigger: { trigger: ".svc-viewport", start: "top 85%", toggleActions: "play none none none" },
+        }
+      )
     }, sectionRef)
     return () => { try { ctx.revert() } catch (_) {} }
   }, [])
 
   return (
-    <section ref={sectionRef} className="pt-24 sm:pt-32 pb-10 sm:pb-14 px-4 sm:px-6">
+    <section id="services" ref={sectionRef} className="scroll-mt-28 pt-24 sm:pt-32 pb-10 sm:pb-14 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
@@ -76,33 +148,174 @@ export function ServicesPreview() {
               Four ways AI <span className="gradient-text">moves your numbers.</span>
             </h2>
           </div>
-          <Link
-            href="/services"
-            className="svc-preview-header inline-flex items-center gap-2 text-sm font-semibold text-accent hover:gap-3 transition-all whitespace-nowrap"
-          >
-            All services →
-          </Link>
+          <p className="svc-preview-header text-sm text-foreground/45 max-w-xs leading-relaxed">
+            Every engagement starts with the audit — we find the workflows bleeding time, then build the fix.
+          </p>
         </div>
 
-        {/* Cards grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {SERVICES.map((svc) => (
-            <Link key={svc.number} href={svc.href} className="svc-preview-card block group">
-              <div className="glass-card p-7 h-full flex flex-col hover:border-accent/30 transition-colors">
-                <div className="flex items-start justify-between mb-6">
-                  <span className="text-3xl text-accent/60 leading-none select-none">{svc.icon}</span>
-                  <span className="text-3xl font-black text-foreground/10 leading-none">{svc.number}</span>
+        {/* Track — drifts continuously, halts under the cursor. Leaving it
+            clears the selection, so nothing is shown unless you are pointing
+            at something. */}
+        <div
+          ref={gridRef}
+          className="svc-viewport relative overflow-hidden"
+          data-anim={inView ? "on" : "off"}
+          onMouseLeave={() => setActiveId(null)}
+        >
+          {/* Both pauses live in CSS below. A Tailwind [animation-play-state]
+              utility does NOT work here: the `animation` shorthand in this
+              component's own <style> resets play-state to running and wins the
+              cascade, so the class applied but did nothing. */}
+          <div className="svc-track flex w-max gap-5">
+            {TRACK.map((svc, i) => {
+              const isActive = String(i) === activeId
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  data-reveal-id={String(i)}
+                  aria-hidden={i >= SERVICES.length}
+                  tabIndex={i >= SERVICES.length ? -1 : 0}
+                  onMouseEnter={() => setActiveId(String(i))}
+                  onFocus={() => setActiveId(String(i))}
+                  onBlur={() => setActiveId(null)}
+                  onClick={() => setActiveId(String(i))}
+                  aria-expanded={isActive}
+                  aria-controls="svc-detail"
+                  data-active={isActive}
+                  className="svc-preview-card glass-card group flex w-[270px] shrink-0 flex-col p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[320px]"
+                >
+                  <div className="mb-6 flex items-start justify-between">
+                    <span className="select-none text-3xl leading-none text-accent/60">{svc.icon}</span>
+                    <span className="select-none text-3xl font-black leading-none text-foreground/10 transition-colors duration-300 group-data-[active=true]:text-accent/25">
+                      {svc.number}
+                    </span>
+                  </div>
+                  <h3 className="mb-2 text-lg font-bold transition-colors duration-300 group-data-[active=true]:text-accent">
+                    {svc.title}
+                  </h3>
+                  <p className="flex-1 text-sm leading-relaxed text-foreground/55">{svc.tagline}</p>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* edge fades so cards enter and leave rather than pop */}
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16"
+               style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16"
+               style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
+        </div>
+
+        {/* Drawer. Deliberately NOT a glass-card — it is tinted at the top
+            where it meets the row and fades down, so it reads as the card
+            above it opened rather than as a fifth card. */}
+        <div
+          id="svc-detail"
+          role="region"
+          aria-live="polite"
+          className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
+        >
+          {/* Rail — slides to sit under the active card and matches its width */}
+          <span
+            aria-hidden="true"
+            className="absolute top-0 z-10 h-[2px] rounded-full bg-accent transition-all duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+            style={{
+              left: rail.left,
+              width: rail.width,
+              opacity: isOpen ? 1 : 0,
+              boxShadow: "0 0 18px 1px oklch(0.60 0.22 292 / 0.7)",
+            }}
+          />
+
+          {/* Header row — always present, so the panel never collapses to
+              nothing and there is always an affordance to read. */}
+          <div className="flex min-h-14 items-center px-7 sm:px-9 lg:px-10">
+            {active ? (
+              <p key={active.id} className="reveal-in text-[11px] font-semibold uppercase tracking-widest text-accent">
+                {active.number} — {active.title}
+              </p>
+            ) : (
+              <p className="flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/35">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
+                Hover a service to see what&apos;s inside
+              </p>
+            )}
+          </div>
+
+          {/* Content — grows from nothing on first hover, then stays open */}
+          <div
+            className="grid transition-[grid-template-rows] duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+            style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+          >
+            <div className="overflow-hidden">
+              {active && (
+                <div key={active.id} className="reveal-in grid gap-8 px-7 pb-8 sm:px-9 sm:pb-9 lg:grid-cols-[1fr_1.15fr] lg:gap-14 lg:px-10 lg:pb-10">
+                  <div>
+                    <p className="text-xl sm:text-2xl font-bold tracking-tight leading-snug text-foreground text-balance">
+                      {active.tagline}
+                    </p>
+                    <Link
+                      href="/#booking-section"
+                      className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent transition-all hover:gap-3"
+                    >
+                      Start with this <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
+
+                  <div>
+                    <p className="text-sm sm:text-base leading-relaxed text-foreground/60">{active.detail}</p>
+                    <p className="mt-6 text-[11px] font-semibold uppercase tracking-widest text-foreground/35">
+                      What you get
+                    </p>
+                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {active.deliverables.map((d) => (
+                        <li key={d} className="flex items-start gap-2.5 text-sm text-foreground/75">
+                          <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                          {d}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold mb-2 group-hover:text-accent transition-colors">{svc.title}</h3>
-                <p className="text-sm text-foreground/55 leading-relaxed flex-1">{svc.tagline}</p>
-                <p className="text-xs text-accent font-semibold mt-4 flex items-center gap-1 group-hover:gap-2 transition-all">
-                  Learn more <span>→</span>
-                </p>
-              </div>
-            </Link>
-          ))}
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        /* Tinted where it meets the row, fading down — an opened drawer,
+           not another card. */
+        .reveal-drawer {
+          background:
+            linear-gradient(to bottom, oklch(0.60 0.22 292 / 0.07), transparent 45%),
+            oklch(0.10 0.010 265);
+        }
+        @keyframes reveal-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes reveal-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%      { opacity: 0.3; transform: scale(0.75); }
+        }
+        /* -50% because the set is rendered twice — the loop is seamless */
+        @keyframes svc-marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+        /* Slow on purpose — ~22px/s. A moving target is harder to hit than a
+           static one, so the drift has to read as ambient rather than as
+           something you chase. */
+        .svc-track { animation: svc-marq 60s linear infinite; will-change: transform; }
+        /* Declared after the shorthand so it actually wins */
+        .svc-viewport:hover .svc-track,
+        .svc-viewport[data-anim="off"] .svc-track { animation-play-state: paused; }
+        .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .reveal-in { animation: none; }
+          .svc-track { animation: none; }
+          .reveal-drawer [style*="grid-template-rows"] { transition: none !important; }
+        }
+      `}</style>
     </section>
   )
 }
