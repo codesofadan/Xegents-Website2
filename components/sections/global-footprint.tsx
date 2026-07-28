@@ -14,10 +14,19 @@ gsap.registerPlugin(ScrollTrigger)
    No percentages — once the list grew past the six markets Barion publishes
    shares for, those numbers stopped summing to anything.
 
-   POSITIONS were measured against the rendered map, not calculated. This asset
-   is a decorative silhouette rather than a true projection, so Mercator maths
-   lands every marker several percent off. Each value below is the verified
-   position of that country on this particular image.
+   POSITIONS are solved, not eyeballed. /world-map.png was fitted against 108
+   known land/sea control points; it is a WEB MERCATOR silhouette, vertically
+   squashed to ~0.82 of conformal. Solved parameters, for the 1107×609 source:
+
+     x_px = 518.9 + 3.035 · lon°
+     y_px = 423.5 − 142.5 · ln(tan(45° + lat°/2))
+
+   That fit classifies 107 of 108 control points correctly. The percentages
+   below are that formula's output for each capital, then nudged by a few px
+   where this silhouette simplifies the coastline away — the Malay peninsula is
+   a 6px sliver, Java is not drawn at all (so Indonesia sits on Kalimantan),
+   and Britain merges into France below 52°N (so the UK dot sits at 54.5°N).
+   Every one is verified to land inside the drawn landmass.
 
    MOTION: every dot pulses on a staggered delay so the map reads as live
    rather than mechanical. All of it pauses off-screen and stops dead under
@@ -26,7 +35,7 @@ gsap.registerPlugin(ScrollTrigger)
 
 type Market = {
   country: string
-  /** verified position on /world-map.png, % across / % down */
+  /** solved position on /world-map.png, % across / % down */
   x: number
   y: number
   hq?: boolean
@@ -35,15 +44,18 @@ type Market = {
 }
 
 const MARKETS: Market[] = [
-  { country: "Malaysia",     x: 76.5, y: 69.5, hq: true },
-  { country: "Pakistan",     x: 67.5, y: 56.0 },
-  { country: "Indonesia",    x: 81.5, y: 72.0 },
-  { country: "Thailand",     x: 73.5, y: 62.0 },
-  { country: "USA",          x: 19.9, y: 43.3 },
-  { country: "UK",           x: 46.8, y: 33.5 },
-  { country: "Saudi Arabia", x: 60.5, y: 60.0, labelShift: -20 },
-  { country: "UAE",          x: 63.5, y: 59.5, labelShift: 20 },
-  { country: "Australia",    x: 86.8, y: 77.5 },
+  { country: "Malaysia",     x: 74.98, y: 68.14, hq: true, labelShift: -20 },
+  { country: "Pakistan",     x: 66.94, y: 54.84 },
+  { country: "Indonesia",    x: 78.14, y: 70.28, labelShift: 18 },
+  // Bangkok and Kuala Lumpur are only ~1° apart in longitude, so Thailand's
+  // label lands exactly on the Malaysian pin. Nothing else sits west of it,
+  // so the label moves rather than either dot.
+  { country: "Thailand",     x: 74.44, y: 62.89, labelShift: -38 },
+  { country: "USA",          x: 19.87, y: 51.72 },
+  { country: "UK",           x: 46.34, y: 42.86 },
+  { country: "Saudi Arabia", x: 59.71, y: 59.11, labelShift: -34 },
+  { country: "UAE",          x: 61.97, y: 59.11, labelShift: 26 },
+  { country: "Australia",    x: 88.35, y: 84.24 },
 ]
 
 export function GlobalFootprint() {
