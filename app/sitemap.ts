@@ -2,17 +2,23 @@ import type { MetadataRoute } from "next"
 
 const BASE_URL = "https://xegents.com"
 
-/* The site is a single page. Every former route — /services, /projects,
-   /blog, /contact, /clients, /lead-magnets, /team — now lives as a section or
-   an in-place reveal panel on the home page, so the sitemap lists one URL.
-   Advertising the old paths here would hand Google a list of 404s. */
+/* The marketing site is a single page — every former route (/services,
+   /projects, /blog, …) now lives as a section on the home page. The lead
+   magnet listing is the one standalone public route that remains. */
 export default function sitemap(): MetadataRoute.Sitemap {
+  const lastModified = new Date()
   return [
     {
       url: `${BASE_URL}/`,
-      lastModified: new Date(),
+      lastModified,
       changeFrequency: "weekly",
       priority: 1.0,
+    },
+    {
+      url: `${BASE_URL}/lead-magnets`,
+      lastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
     },
   ]
 }

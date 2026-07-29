@@ -12,6 +12,9 @@ export const siteConfig = {
     { label: "Services",    href: "/#services",        id: "services" },
     { label: "Affiliation", href: "/#parent-company",  id: "parent-company" },
     { label: "Work",        href: "/#work",            id: "work" },
+    // Real route, not an anchor — scrollToSection finds no element with this
+    // id and falls through to normal navigation.
+    { label: "Free Tools",  href: "/lead-magnets",     id: "lead-magnets-page" },
   ],
   social: {
     youtube: "https://www.youtube.com/@zainsaeeed",
