@@ -275,18 +275,6 @@ export function NumbersDontLie() {
           </p>
         </div>
 
-        {/* Highlighted callout — emphasis without competing with the heading */}
-        <div className="ndl-header mx-auto mb-10 sm:mb-12 max-w-2xl rounded-xl border border-accent/25 bg-accent/[0.07] border-l-2 border-l-accent px-5 py-4 sm:px-6 sm:py-5">
-          <p className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-            Don&apos;t be in the{" "}
-            <span className="rounded bg-accent/20 px-1.5 py-0.5 text-accent">last 12%.</span>
-          </p>
-          <p className="mt-2 text-sm text-foreground/55 leading-relaxed">
-            88% of businesses already run AI in production. The gap compounds every quarter — and
-            closing it later always costs more than opening it now.
-          </p>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <Card
             title="$3.70 Back for Every $1 Put Into AI"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -95,25 +95,11 @@ const SERVICES: Service[] = [
   },
 ]
 
-/** Rendered twice so the track can loop seamlessly. */
-const TRACK = [...SERVICES, ...SERVICES]
-
 export function ServicesPreview() {
   const sectionRef = useRef<HTMLElement>(null)
   const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
-  const [inView, setInView] = useState(false)
 
-  // activeId is the slot index, not the service id — the same service appears
-  // twice in the track and the rail has to point at the copy under the cursor.
   const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
-
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -153,29 +139,21 @@ export function ServicesPreview() {
           </p>
         </div>
 
-        {/* Track — drifts continuously, halts under the cursor. Leaving it
-            clears the selection, so nothing is shown unless you are pointing
-            at something. */}
+        {/* Static grid — four fixed cards. Hovering one reveals its detail in
+            the shared drawer below; leaving the grid clears the selection. */}
         <div
           ref={gridRef}
-          className="svc-viewport relative overflow-hidden"
-          data-anim={inView ? "on" : "off"}
+          className="svc-viewport relative"
           onMouseLeave={() => setActiveId(null)}
         >
-          {/* Both pauses live in CSS below. A Tailwind [animation-play-state]
-              utility does NOT work here: the `animation` shorthand in this
-              component's own <style> resets play-state to running and wins the
-              cascade, so the class applied but did nothing. */}
-          <div className="svc-track flex w-max gap-5">
-            {TRACK.map((svc, i) => {
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {SERVICES.map((svc, i) => {
               const isActive = String(i) === activeId
               return (
                 <button
-                  key={i}
+                  key={svc.id}
                   type="button"
                   data-reveal-id={String(i)}
-                  aria-hidden={i >= SERVICES.length}
-                  tabIndex={i >= SERVICES.length ? -1 : 0}
                   onMouseEnter={() => setActiveId(String(i))}
                   onFocus={() => setActiveId(String(i))}
                   onBlur={() => setActiveId(null)}
@@ -183,7 +161,7 @@ export function ServicesPreview() {
                   aria-expanded={isActive}
                   aria-controls="svc-detail"
                   data-active={isActive}
-                  className="svc-preview-card glass-card group flex w-[270px] shrink-0 flex-col p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[320px]"
+                  className="svc-preview-card glass-card group flex flex-col p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
                 >
                   <div className="mb-6 flex items-start justify-between">
                     <span className="select-none text-3xl leading-none text-accent/60">{svc.icon}</span>
@@ -199,12 +177,6 @@ export function ServicesPreview() {
               )
             })}
           </div>
-
-          {/* edge fades so cards enter and leave rather than pop */}
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16"
-               style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16"
-               style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
         </div>
 
         {/* Drawer. Deliberately NOT a glass-card — it is tinted at the top
@@ -300,19 +272,9 @@ export function ServicesPreview() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%      { opacity: 0.3; transform: scale(0.75); }
         }
-        /* -50% because the set is rendered twice — the loop is seamless */
-        @keyframes svc-marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        /* Slow on purpose — ~22px/s. A moving target is harder to hit than a
-           static one, so the drift has to read as ambient rather than as
-           something you chase. */
-        .svc-track { animation: svc-marq 60s linear infinite; will-change: transform; }
-        /* Declared after the shorthand so it actually wins */
-        .svc-viewport:hover .svc-track,
-        .svc-viewport[data-anim="off"] .svc-track { animation-play-state: paused; }
         .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
         @media (prefers-reduced-motion: reduce) {
           .reveal-in { animation: none; }
-          .svc-track { animation: none; }
           .reveal-drawer [style*="grid-template-rows"] { transition: none !important; }
         }
       `}</style>

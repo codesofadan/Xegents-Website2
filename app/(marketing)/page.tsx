@@ -9,7 +9,6 @@ import { GroupCompanies } from "@/components/sections/group-companies"
 import { GlobalFootprint } from "@/components/sections/global-footprint"
 import { ProjectsMarquee } from "@/components/sections/projects-marquee"
 import { Testimonials } from "@/components/sections/testimonials"
-import { FounderSection } from "@/components/sections/founder-section"
 import { TechStack } from "@/components/sections/tech-stack"
 import { FinalCTA } from "@/components/sections/final-cta"
 
@@ -27,7 +26,6 @@ export default function Home() {
       <ProjectsMarquee />
       <Testimonials />
       <VideoShowcase />
-      <FounderSection />
       <TechStack />
       <FinalCTA />
     </main>

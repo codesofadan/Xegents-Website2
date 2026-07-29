@@ -12,7 +12,6 @@ export const siteConfig = {
     { label: "Services",    href: "/#services",        id: "services" },
     { label: "Affiliation", href: "/#parent-company",  id: "parent-company" },
     { label: "Work",        href: "/#work",            id: "work" },
-    { label: "About",       href: "/#about",           id: "about" },
   ],
   social: {
     youtube: "https://www.youtube.com/@zainsaeeed",
