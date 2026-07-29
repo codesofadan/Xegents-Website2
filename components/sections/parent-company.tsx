@@ -133,7 +133,7 @@ export function ParentCompany() {
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8 sm:gap-10">
                 <div>
                   <h2 className="text-3xl sm:text-5xl font-black tracking-tighter leading-tight">
-                    Xegents is owned by <span className="gradient-text">Barion Systems.</span>
+                    Xegents owned by <span className="gradient-text">Barion Systems.</span>
                   </h2>
                 </div>
 
