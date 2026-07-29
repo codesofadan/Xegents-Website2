@@ -154,6 +154,60 @@
       0 10px 24px -14px rgba(0, 0, 0, 0.65);
   }
 
+  /* ── Real glass ─────────────────────────────────────────────────────────
+     `.surface-card` and `.glass-card` above are opaque by deliberate choice,
+     and that choice stands for the rest of the page. This is the genuine
+     material, for the surfaces that are meant to read as frosted glass over
+     moving light. Three details separate glass from "a dark box with blur":
+
+       1. BARRIER LAYER — a solid low-opacity fill beneath the translucent
+          gradient. Translucency on its own cannot guarantee contrast; the
+          barrier keeps text over the panel above 4.5:1 no matter what drifts
+          behind it.
+       2. TOP-LIT EDGE — an inset highlight along the top lip and a shadow
+          along the bottom. Real glass catches light on its upper edge, and
+          this one detail is what makes the material legible as glass.
+       3. SATURATE — the blur lifts saturation so colour behind the panel
+          blooms through instead of settling into grey.
+
+     ACCESSIBILITY: if the OS asks for reduced transparency, or the browser
+     cannot do backdrop-filter at all, the panel resolves to a solid surface.
+     Only the material changes — never the layout. (Overrides live unlayered
+     at the foot of this file so they outrank this layer.)
+  ──────────────────────────────────────────────────────────────────────── */
+  .glass-panel {
+    position: relative;
+    background:
+      linear-gradient(155deg,
+        oklch(1 0 0 / 0.055) 0%,
+        oklch(1 0 0 / 0.012) 44%,
+        oklch(1 0 0 / 0.030) 100%),
+      oklch(0.13 0.022 278 / 0.58);
+    /* Unprefixed ONLY. Hand-writing `-webkit-backdrop-filter` alongside this
+       makes Lightning CSS collapse the pair and emit just the prefixed form,
+       which current Chrome no longer honours — the blur silently disappears.
+       Let the compiler decide prefixes; it targets the real browser matrix. */
+    backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid oklch(1 0 0 / 0.10);
+    border-radius: 18px;
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0 / 0.15),
+      inset 0 -1px 0 0 oklch(0 0 0 / 0.35),
+      0 24px 55px -30px oklch(0 0 0 / 0.95);
+  }
+
+  /* A lit plate for third-party marks. Every logo in the group wall is drawn
+     for white paper — three of them (SecureResi, Barioo, WonHost) use knockout
+     type and collapse into a solid white blob the moment they are forced to
+     monochrome, so they get a surface that suits them rather than a filter
+     that destroys them. */
+  .glass-plate {
+    background: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.945 0.004 265) 100%);
+    box-shadow:
+      inset 0 1px 0 0 oklch(1 0 0),
+      0 10px 24px -14px oklch(0 0 0 / 0.85);
+  }
+
   /* ── Accent gradient text — use sparingly, one per page ─────────────── */
   .gradient-text {
     background: linear-gradient(135deg,
@@ -211,4 +265,19 @@ html.lenis body {
 @media (prefers-reduced-motion: reduce) {
   .glass-card, .surface-card { transition: border-color 0.2s ease; }
   .glass-card:hover, .surface-card:hover { transform: none; }
+}
+
+/* ── Glass fallbacks ───────────────────────────────────────────────────────
+   Unlayered on purpose: rules outside @layer outrank layered ones, so these
+   win over .glass-panel without needing !important. Both paths land on the
+   same solid colour, so a panel looks identical whichever route it takes. */
+@supports not (backdrop-filter: blur(2px)) {
+  .glass-panel { background: oklch(0.125 0.020 275); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel {
+    background: oklch(0.125 0.020 275);
+    backdrop-filter: none;
+  }
 }

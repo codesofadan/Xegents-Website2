@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const DESTINATIONS = [
   { label: "What we build", href: "/#services", hint: "Audit, automation, agents, integration" },
   { label: "Our work", href: "/#work", hint: "Four systems already in production" },
-  { label: "The group", href: "/#group", hint: "Backed by Barion Systems" },
+  { label: "The group", href: "/#group", hint: "Owned by Barion Systems" },
   { label: "Book a call", href: "/#booking-section", hint: "30 minutes, no pitch" },
 ]
 
