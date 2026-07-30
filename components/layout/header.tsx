@@ -96,6 +96,9 @@ export function Header() {
             className="h-8 w-auto sm:h-9 object-contain"
             style={{ filter: "brightness(0) invert(1)" }}
             loading="eager"
+            /* This is the page's LCP element — the header is the first real
+               content painted. eager alone still queues it at Low priority. */
+            fetchPriority="high"
           />
         </Link>
 

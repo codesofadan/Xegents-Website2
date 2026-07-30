@@ -6,7 +6,15 @@ import { gsap, ScrollTrigger } from "@/lib/gsap"
 
 const PHRASES = ["WE FIND THE WORK", "YOUR TEAM SHOULDN'T BE DOING", "ASSIGN IT TO AI"]
 const SEP = "★"
-const REPS = 10
+/* Measured, not guessed. Each repetition is ~1172px of type at the largest
+   breakpoint, and the strip is `100% + 900px` wide and scroll-scrubbed +/-220px
+   — so at a 1920px viewport it needs 2.78 repetitions to stay full. Four gives
+   a margin and still fills a 390px phone seven times over.
+
+   It was 10, which rendered 60 spans per strip and 120 across the two. That is
+   a tenth of the page's entire element count, every one of them a nowrap text
+   node the browser has to measure, all of it clipped and never seen. */
+const REPS = 4
 
 function buildSegments(order: number[]) {
   const out: { text: string; star: boolean }[] = []
