@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useInView } from "@/hooks/use-in-view"
+import { useDismiss } from "@/hooks/use-dismiss"
 import Image from "next/image"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 
@@ -26,6 +27,14 @@ import { gsap, ScrollTrigger } from "@/lib/gsap"
    and Britain merges into France below 52°N (so the UK dot sits at 54.5°N).
    Every one is verified to land inside the drawn landmass.
 
+   ONE DELIBERATE EXCEPTION TO THAT, added when the map was un-gated for
+   phones: Saudi Arabia and the UAE carry a `nudgeSm` of ∓0.9%, applied ONLY
+   below 1024px. Their true positions are 2.26% apart, which is 8.1px on a
+   358px-wide stage — closer than the dots are wide, so they overlapped into
+   one blob. ±0.9% is ±10px on the 1107px source and still lands well inside
+   the Arabian peninsula. At lg and above the solved positions are used
+   untouched.
+
    MOTION: every dot pulses on a staggered delay so the map reads as live
    rather than mechanical. All of it pauses off-screen and stops dead under
    reduced-motion.
@@ -39,6 +48,14 @@ type Market = {
   hq?: boolean
   /** px nudge for the name only, to keep neighbouring labels from touching */
   labelShift?: number
+  /**
+   * Compact-only horizontal nudge, in PERCENT so it scales with the map.
+   * Only two markers need it: Saudi Arabia and the UAE are 2.26% apart, which
+   * is 8.1px on a 358px-wide stage — closer than the dots are wide, so they
+   * physically overlap. ±0.9% pushes them to 14.5px apart, which is ±10px on
+   * the 1107px source image and still well inside the Arabian peninsula.
+   */
+  nudgeSm?: number
 }
 
 const MARKETS: Market[] = [
@@ -51,17 +68,24 @@ const MARKETS: Market[] = [
   { country: "Thailand",     x: 74.44, y: 62.89, labelShift: -38 },
   { country: "USA",          x: 19.87, y: 51.72 },
   { country: "UK",           x: 46.34, y: 42.86 },
-  { country: "Saudi Arabia", x: 59.71, y: 59.11, labelShift: -34 },
-  { country: "UAE",          x: 61.97, y: 59.11, labelShift: 26 },
+  { country: "Saudi Arabia", x: 59.71, y: 59.11, labelShift: -34, nudgeSm: -0.9 },
+  { country: "UAE",          x: 61.97, y: 59.11, labelShift: 26, nudgeSm: 0.9 },
   { country: "Australia",    x: 88.35, y: 84.24 },
 ]
 
 export function GlobalFootprint() {
   const sectionRef = useRef<HTMLElement>(null)
+
+  /* One selection drives both views: tap a dot and its row lights up, tap a
+     row and its dot does. Below lg the labels are gone, so this is the only
+     way a country gets named. */
+  const [active, setActive] = useState<string | null>(null)
+  const activeMarket = MARKETS.find((m) => m.country === active) ?? null
   // Nine looping pulses is nine animations — none of them run off-screen.
   // `initial: true` because this gate PAUSES rather than reveals: starting
   // false would paint one frame of a stalled map on a section already in view.
   const visible = useInView(sectionRef, { initial: true })
+  useDismiss(active !== null, () => setActive(null), [sectionRef])
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -114,13 +138,19 @@ export function GlobalFootprint() {
           </p>
         </div>
 
-        {/* ── Map (lg and up) ─────────────────────────────────────────────
-            Not `sm`. Below ~1024px the Gulf and South-East Asia markers pull
-            close enough together that their labels collide — the dots scale
-            with the map, the type does not. The orbit section uses the same
-            breakpoint for the same reason. */}
-        <div className="gf-map relative hidden lg:block">
-          <div className="relative mx-auto w-full" style={{ aspectRatio: "1107 / 609" }}>
+        {/* ── The map, at every width ──────────────────────────
+            It used to be `hidden lg:block`, with a flat card list standing in
+            below 1024px — so the whole animation was missing on every phone and
+            tablet. It renders everywhere now. Two changes made that possible:
+
+            1. THE DOTS SCALE. They were a fixed 10px (14px for HQ) while their
+               positions are percentages, so shrinking the map left them three
+               times too big for it. They size from container query units now.
+            2. THE LABELS MOVE OUT. Below lg they are hidden and the list below
+               carries the names instead — see the note on that list for the
+               measurement that forces it. Tapping a dot names it in the chip. */}
+        <div className="gf-map relative">
+          <div className="gf-stage relative mx-auto w-full" style={{ aspectRatio: "1107 / 609" }}>
 
             <div
               aria-hidden="true"
@@ -141,72 +171,151 @@ export function GlobalFootprint() {
               style={{ filter: "saturate(1.6) hue-rotate(-6deg)" }}
             />
 
-            {MARKETS.map((m, i) => (
-              <div
-                key={m.country}
-                className="gf-pin absolute -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${m.x}%`, top: `${m.y}%`, zIndex: 10 + i }}
-              >
-                <span className="relative grid place-items-center">
-                  {/* outward ping */}
-                  <span
-                    aria-hidden="true"
-                    className={`gf-ping absolute rounded-full bg-accent ${paused}`}
-                    style={{
-                      width: m.hq ? 14 : 10,
-                      height: m.hq ? 14 : 10,
-                      animationDelay: `${(i * 0.34).toFixed(2)}s`,
-                    }}
-                  />
-                  {/* steady core */}
-                  <span
-                    className={`gf-dot relative rounded-full ${paused}`}
-                    style={{
-                      width: m.hq ? 14 : 10,
-                      height: m.hq ? 14 : 10,
-                      background: m.hq ? "oklch(0.78 0.16 292)" : "oklch(0.66 0.21 292)",
-                      boxShadow: `0 0 ${m.hq ? 18 : 12}px ${m.hq ? 4 : 2}px oklch(0.60 0.22 292 / 0.55)`,
-                      animationDelay: `${(i * 0.34).toFixed(2)}s`,
-                    }}
-                  />
-                </span>
-
-                {/* name, directly beneath the dot */}
-                <span
-                  className="absolute left-1/2 top-full mt-2 whitespace-nowrap"
-                  style={{ transform: `translateX(calc(-50% + ${m.labelShift ?? 0}px))` }}
+            {MARKETS.map((m, i) => {
+              const isActive = active === m.country
+              return (
+                <button
+                  key={m.country}
+                  type="button"
+                  onClick={() => setActive(isActive ? null : m.country)}
+                  aria-pressed={isActive}
+                  aria-label={m.hq ? m.country + " — headquarters" : m.country}
+                  data-hq={m.hq ? "true" : "false"}
+                  data-active={isActive ? "true" : "false"}
+                  className="gf-pin absolute -translate-x-1/2 -translate-y-1/2 focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-accent"
+                  style={{
+                    left: "calc(" + m.x + "% + var(--gf-nudge, 0%))",
+                    top: m.y + "%",
+                    zIndex: isActive ? 40 : 10 + i,
+                    ["--gf-nudge-sm"]: (m.nudgeSm ?? 0) + "%",
+                    ["--gf-delay"]: (i * 0.34).toFixed(2) + "s",
+                  } as React.CSSProperties}
                 >
-                  <span
-                    className={`rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] backdrop-blur-sm ${
-                      m.hq ? "font-bold text-foreground" : "font-semibold text-foreground/85"
-                    }`}
-                  >
-                    {m.country}
-                    {m.hq && <span className="ml-1 text-[8px] font-black tracking-widest text-accent">HQ</span>}
+                  <span className="relative grid place-items-center">
+                    <span aria-hidden="true" className={`gf-ping absolute rounded-full bg-accent ${paused}`} />
+                    <span aria-hidden="true" className={`gf-dot relative rounded-full ${paused}`} />
                   </span>
-                </span>
-              </div>
-            ))}
+
+                  {/* Name beneath the dot. Hidden below lg — nine of these on a
+                      358px stage overlap into an unreadable pile. */}
+                  <span
+                    className="gf-label absolute left-1/2 top-full mt-2 whitespace-nowrap"
+                    style={{ transform: `translateX(calc(-50% + ${m.labelShift ?? 0}px))` }}
+                  >
+                    <span
+                      className={`rounded-md bg-background/70 px-1.5 py-0.5 text-[10px] backdrop-blur-sm ${
+                        m.hq ? "font-bold text-foreground" : "font-semibold text-foreground/85"
+                      }`}
+                    >
+                      {m.country}
+                      {m.hq && <span className="ml-1 text-[8px] font-black tracking-widest text-accent">HQ</span>}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+
+            {/* Chip — anchored to the STAGE, not to the dot. On a 197px-tall
+                map a dot-anchored bubble covers two or three neighbours and
+                needs edge-clamping maths; this needs none and cannot clip. */}
+            <p
+              aria-live="polite"
+              className={`gf-chip absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-accent/30 bg-background/90 px-3 py-1.5 text-xs font-semibold text-foreground transition-opacity duration-200 ${
+                activeMarket ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            >
+              {activeMarket ? activeMarket.country : ""}
+              {activeMarket?.hq && <span className="ml-1.5 text-[9px] font-black tracking-widest text-accent">HQ</span>}
+            </p>
           </div>
         </div>
 
-        {/* ── Cards (below lg) ─────────────────────────────────────────────── */}
-        <div className="gf-cards grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:hidden">
-          {MARKETS.map((m) => (
-            <div key={m.country} className="gf-card glass-card flex items-center gap-2.5 p-3">
-              <span
-                className="h-2 w-2 shrink-0 rounded-full bg-accent"
-                style={{ boxShadow: "0 0 10px 2px oklch(0.60 0.22 292 / 0.55)" }}
-              />
-              <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                {m.country}
-              </span>
-            </div>
-          ))}
+        {/* ── The country list ─────────────────────────────────
+            No longer a fallback — it is the map's conforming alternative, and
+            it earns its place by measurement. Saudi Arabia and the UAE sit
+            2.26% of the map apart, which is 8.1px on a 358px stage; Malaysia
+            to Thailand is 10.5px. Separating them by the 24px WCAG 2.2 asks
+            for would need a map 1062px wide. Map pins whose position carries
+            meaning fall under the Essential exception, so the fix is not to
+            move the pins but to offer a target you can actually hit — these
+            rows, at 44px each. */}
+        <div className="gf-cards mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:hidden">
+          {MARKETS.map((m) => {
+            const isActive = active === m.country
+            return (
+              <button
+                key={m.country}
+                type="button"
+                onClick={() => setActive(isActive ? null : m.country)}
+                aria-pressed={isActive}
+                data-active={isActive ? "true" : "false"}
+                className="gf-card glass-card flex min-h-11 items-center gap-2.5 p-3 text-left transition-colors data-[active=true]:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full bg-accent"
+                  style={{ boxShadow: "0 0 10px 2px oklch(0.60 0.22 292 / 0.55)" }}
+                />
+                <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                  {m.country}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <style>{`
+        /* The stage becomes a query container so the markers can size
+           themselves against the MAP rather than the viewport. That is the
+           whole reason the map can now render at any width: positions were
+           always percentages, but the dots were fixed pixels, so at 358px they
+           were three times too large for the map they sat on.
+
+           NOTE: container-type also makes this element a containing block for
+           position:fixed descendants. There are none today — do not add one. */
+        .gf-stage { container-type: inline-size; }
+
+        .gf-pin {
+          --gf-dot: clamp(7px, 1cqi, 10px);
+          --gf-glow: calc(var(--gf-dot) * 1.3);
+          background: none;
+          border: 0;
+          padding: 0;
+          line-height: 0;
+        }
+        .gf-pin[data-hq="true"] { --gf-dot: clamp(9.8px, 1.4cqi, 14px); }
+
+        /* An invisible 32px hit area centred on a 7px dot. Without it the
+           marker is a target roughly a fifth the size WCAG asks for. */
+        .gf-pin::before {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 32px;
+          height: 32px;
+          transform: translate(-50%, -50%);
+        }
+
+        .gf-ping,
+        .gf-dot {
+          width: var(--gf-dot);
+          height: var(--gf-dot);
+          animation-delay: var(--gf-delay);
+        }
+        .gf-dot {
+          background: oklch(0.66 0.21 292);
+          box-shadow: 0 0 var(--gf-glow) calc(var(--gf-dot) * 0.2) oklch(0.60 0.22 292 / 0.55);
+        }
+        .gf-pin[data-hq="true"] .gf-dot {
+          background: oklch(0.78 0.16 292);
+          box-shadow: 0 0 var(--gf-glow) calc(var(--gf-dot) * 0.28) oklch(0.60 0.22 292 / 0.55);
+        }
+        .gf-pin[data-active="true"] .gf-dot {
+          background: oklch(0.86 0.14 292);
+          box-shadow: 0 0 calc(var(--gf-glow) * 2) calc(var(--gf-dot) * 0.5) oklch(0.60 0.22 292 / 0.9);
+        }
+
         @keyframes gf-ping {
           0%   { transform: scale(1);   opacity: 0.5; }
           70%  { transform: scale(3.4); opacity: 0; }
@@ -222,6 +331,17 @@ export function GlobalFootprint() {
            were running off-screen. */
         [data-anim="off"] .gf-ping,
         [data-anim="off"] .gf-dot { animation-play-state: paused; }
+
+        /* Below lg the labels come off the map and the two markers that
+           physically overlap get their percentage nudge. Both are width
+           decisions, not input decisions — the collision is about space. */
+        @media (max-width: 1023.98px) {
+          .gf-label { display: none; }
+          .gf-pin   { --gf-nudge: var(--gf-nudge-sm, 0%); }
+        }
+        @media (min-width: 1024px) {
+          .gf-chip { display: none; }
+        }
 
         @media (prefers-reduced-motion: reduce) {
           .gf-ping { display: none; }
