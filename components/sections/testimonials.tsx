@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 
 
@@ -122,8 +122,21 @@ export function Testimonials() {
     }
   }, [])
 
+  /* WCAG 2.2.2 (Pause, Stop, Hide). This is a 38-second auto-scrolling region
+     and the only way to stop it was hovering a mouse over it — the cards are
+     plain divs, so there was no keyboard path either, and on a phone none at
+     all. A visible toggle is the only control that works for every input. */
+  const [paused, setPaused] = useState(false)
   const pause = () => tweenRef.current?.pause()
-  const resume = () => tweenRef.current?.resume()
+  const resume = () => { if (!paused) tweenRef.current?.resume() }
+  const toggle = () => {
+    setPaused((p) => {
+      const next = !p
+      if (next) tweenRef.current?.pause()
+      else tweenRef.current?.resume()
+      return next
+    })
+  }
 
   return (
     <section ref={sectionRef} className="py-24 sm:py-32 border-t border-border overflow-hidden">
@@ -136,14 +149,39 @@ export function Testimonials() {
               What founders say <span className="gradient-text">after we ship.</span>
             </h2>
           </div>
-          <p className="testi-header-el text-sm text-foreground/45 max-w-xs leading-relaxed">
-            Numbers from real engagements. No stock photos, no made-up stats.
-          </p>
+          <div className="testi-header-el flex items-end gap-4">
+            <p className="text-sm text-foreground/45 max-w-xs leading-relaxed">
+              Numbers from real engagements. No stock photos, no made-up stats.
+            </p>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-pressed={paused}
+              aria-label={paused ? "Play the testimonial marquee" : "Pause the testimonial marquee"}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border text-foreground/60 transition-colors hover:border-accent/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {paused ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
+                  <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Rotating marquee (left → right) */}
-      <div className="relative" onMouseEnter={pause} onMouseLeave={resume}>
+      <div
+        className="relative"
+        role="region"
+        aria-label="Client testimonials"
+        onPointerEnter={(e) => { if (e.pointerType !== "touch") pause() }}
+        onPointerLeave={(e) => { if (e.pointerType !== "touch") resume() }}
+      >
         <div ref={trackRef} className="flex gap-5 w-max px-4 sm:px-6 will-change-transform">
           {LOOP.map((t, i) => (
             <div

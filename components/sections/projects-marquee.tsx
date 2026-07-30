@@ -6,6 +6,7 @@ import Link from "next/link"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { projects } from "@/lib/projects-data"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
+import { useDismiss } from "@/hooks/use-dismiss"
 
 /* ────────────────────────────────────────────────────────────────────────────
    PROOF OF WORK — four shipped systems.
@@ -68,7 +69,13 @@ export function ProjectsMarquee() {
     ? DETAILS[active.id] ?? { problem: active.challenge, built: active.solution }
     : null
 
+  const drawerRef = useRef<HTMLDivElement>(null)
   const inView = useInView(sectionRef)
+
+  /* On touch there is no pointerleave, so without this a tapped panel stays
+     open — and because the marquee freezes while it is open, the track would
+     stay stopped for the rest of the visit. */
+  useDismiss(isOpen, () => setActiveId(null), [gridRef, drawerRef])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -115,7 +122,8 @@ export function ProjectsMarquee() {
           ref={gridRef}
           className="work-viewport relative overflow-hidden"
           data-anim={inView ? "on" : "off"}
-          onMouseLeave={() => setActiveId(null)}
+          data-hold={isOpen ? "true" : "false"}
+          onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
         >
           <div className="work-track flex w-max gap-4 sm:gap-5">
           {TRACK.map((p, i) => {
@@ -127,14 +135,16 @@ export function ProjectsMarquee() {
                 data-reveal-id={String(i)}
                 aria-hidden={i >= projects.length}
                 tabIndex={i >= projects.length ? -1 : 0}
-                onMouseEnter={() => setActiveId(String(i))}
+                onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
                 onFocus={() => setActiveId(String(i))}
-                onBlur={() => setActiveId(null)}
-                onClick={() => setActiveId(String(i))}
+                /* Tap toggles. onBlur used to close here, which broke the
+                   keyboard path entirely: tabbing INTO the panel to reach its
+                   link blurred the card and shut the panel on the way. */
+                onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
                 aria-expanded={isActive}
                 aria-controls="work-detail"
                 data-active={isActive}
-                className="bento-card glass-card group relative flex w-[320px] shrink-0 flex-col overflow-hidden p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[380px] sm:p-8"
+                className="bento-card glass-card group relative flex w-[min(78vw,320px)] shrink-0 flex-col overflow-hidden p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[380px] sm:p-8"
               >
                 <span
                   aria-hidden="true"
@@ -170,15 +180,16 @@ export function ProjectsMarquee() {
           })}
           </div>
 
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16"
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 sm:w-16"
                style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16"
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 sm:w-16"
                style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
         </div>
 
         {/* Drawer — same device as the services section above */}
         <div
           id="work-detail"
+          ref={drawerRef}
           role="region"
           aria-live="polite"
           className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
@@ -202,7 +213,8 @@ export function ProjectsMarquee() {
             ) : (
               <p className="flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/35">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
-                Hover a system to read the build
+                <span className="pointer-coarse:hidden">Hover a system to read the build</span>
+                <span className="hidden pointer-coarse:inline">Tap a system to read the build</span>
               </p>
             )}
           </div>
@@ -277,11 +289,32 @@ export function ProjectsMarquee() {
           0%, 100% { opacity: 1; transform: scale(1); }
           50%      { opacity: 0.3; transform: scale(0.75); }
         }
-        @keyframes work-marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-        .work-track { animation: work-marq 64s linear infinite; will-change: transform; }
-        /* Declared after the shorthand so it actually wins */
-        .work-viewport:hover .work-track,
+        /* SEAM. The track is the four cards rendered twice in a flex row with a
+           gap, so it has 2n-1 gaps, not 2n. translateX(-50%) therefore stops
+           half a gap short of where the second set began and the row visibly
+           jumped every 64 seconds — 8px below sm, 10px at sm and up. Shifting
+           by half the gap on top of -50% lands exactly on the repeat. */
+        @keyframes work-marq {
+          from { transform: translateX(0); }
+          to   { transform: translateX(calc(-50% - var(--work-gap) / 2)); }
+        }
+        .work-track {
+          --work-gap: 16px;
+          animation: work-marq 64s linear infinite;
+          will-change: transform;
+        }
+        @media (min-width: 640px) { .work-track { --work-gap: 20px; } }
+
+        /* Declared after the shorthand so they actually win.
+           data-hold is the touch path: a tap opens the panel and stops the
+           track, so the card you are reading about stays where you tapped it.
+           Without it the rail measured once and the track slid out from under
+           it within a second. */
+        .work-viewport[data-hold="true"] .work-track,
         .work-viewport[data-anim="off"] .work-track { animation-play-state: paused; }
+        @media (hover: hover) and (pointer: fine) {
+          .work-viewport:hover .work-track { animation-play-state: paused; }
+        }
         .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
         @media (prefers-reduced-motion: reduce) {
           .reveal-in { animation: none; }

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
+import { useDismiss } from "@/hooks/use-dismiss"
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -96,6 +97,10 @@ const SERVICES: Service[] = [
 export function ServicesPreview() {
   const sectionRef = useRef<HTMLElement>(null)
   const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  /* Touch has no pointerleave, so a tapped panel would never close. */
+  useDismiss(isOpen, () => setActiveId(null), [gridRef, drawerRef])
 
   const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
 
@@ -142,7 +147,7 @@ export function ServicesPreview() {
         <div
           ref={gridRef}
           className="svc-viewport relative"
-          onMouseLeave={() => setActiveId(null)}
+          onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
         >
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {SERVICES.map((svc, i) => {
@@ -152,10 +157,12 @@ export function ServicesPreview() {
                   key={svc.id}
                   type="button"
                   data-reveal-id={String(i)}
-                  onMouseEnter={() => setActiveId(String(i))}
+                  onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
                   onFocus={() => setActiveId(String(i))}
-                  onBlur={() => setActiveId(null)}
-                  onClick={() => setActiveId(String(i))}
+                  /* Tap toggles. onBlur used to close here, which broke the
+                     keyboard path entirely: tabbing INTO the panel to reach its
+                     link blurred the card and shut the panel on the way. */
+                  onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
                   aria-expanded={isActive}
                   aria-controls="svc-detail"
                   data-active={isActive}
@@ -182,6 +189,7 @@ export function ServicesPreview() {
             above it opened rather than as a fifth card. */}
         <div
           id="svc-detail"
+          ref={drawerRef}
           role="region"
           aria-live="polite"
           className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
@@ -208,7 +216,8 @@ export function ServicesPreview() {
             ) : (
               <p className="flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/35">
                 <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
-                Hover a service to see what&apos;s inside
+                <span className="pointer-coarse:hidden">Hover a service to see what&apos;s inside</span>
+                <span className="hidden pointer-coarse:inline">Tap a service to see what&apos;s inside</span>
               </p>
             )}
           </div>
