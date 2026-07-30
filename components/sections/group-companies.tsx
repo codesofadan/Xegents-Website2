@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useInView } from "@/hooks/use-in-view"
+import { useDismiss } from "@/hooks/use-dismiss"
 import Image from "next/image"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 
@@ -62,10 +63,23 @@ import { gsap, ScrollTrigger } from "@/lib/gsap"
    knockout type, so inverting them fills the counters and leaves a white blob.
    They get a lit disc instead, in full colour.
 
-   TOUCH AND REDUCED MOTION. Hover is not an input on a phone, and falling
-   logos you cannot catch are a trap. Below lg — and for anyone who asks for
-   reduced motion at any width — this becomes a still grid with the detail
-   already showing.
+   IT FOLDS RATHER THAN SHRINKS. Six columns across a 358px phone would put
+   the lane centres 57px apart while the discs are 80-96px wide — every
+   neighbour overlapping by half a disc. So below 1024px the wall folds into
+   three columns stacked in two zones of half the stage height each: brand i
+   takes column i % 3 and zone floor(i / 3). All six still own a lane, none of
+   them ever shares one, and the whole reflow is two custom properties —
+   --zone-h halves the travel, --zone-y offsets the lower row. No second DOM
+   tree, no JS width check, nothing to hydrate wrong.
+
+   TOUCH. Hover is not an input on a phone, and a moving disc that navigates
+   the instant a finger lands on it is a trap. On a coarse pointer the first
+   tap opens the card and freezes the shower; the card's own "Visit site" link
+   is the only thing that leaves the site.
+
+   REDUCED MOTION. Twelve wrapping discs cannot be made still and still make
+   sense — there is nowhere for the duplicates to sit — so anyone who asks for
+   reduced motion gets the still grid instead, at any width.
 ──────────────────────────────────────────────────────────────────────────── */
 
 type Brand = {
@@ -150,11 +164,31 @@ const COLUMNS = [
   { x: 91, size: 0.90, dur: 9.7,  dir: "down" },
 ] as const
 
+/** The same six lanes, folded for a narrow screen.
+ *
+ *  Six columns across 358px would put the centres 57px apart while the discs
+ *  are 80-96px wide — every neighbour overlapping by half a disc. So the wall
+ *  folds instead of shrinking: three columns, stacked in two zones of half the
+ *  stage height each. Brand i takes column i % 3 and zone floor(i / 3), so all
+ *  six still own a lane of their own and none of them ever shares one.
+ *
+ *  Directions are re-dealt rather than inherited, so each zone has a mix of
+ *  risers and fallers of its own instead of one zone going entirely one way. */
+const COLUMNS_SM = [
+  { x: 18, size: 1.00, dur: 7.4, dir: "down" },
+  { x: 50, size: 0.92, dur: 8.6, dir: "up" },
+  { x: 82, size: 0.96, dur: 8.0, dir: "down" },
+  { x: 18, size: 0.94, dur: 8.9, dir: "up" },
+  { x: 50, size: 1.00, dur: 7.8, dir: "down" },
+  { x: 82, size: 0.90, dur: 9.3, dir: "up" },
+] as const
+
 /* Two copies per column, half a cycle apart, plus a per-column offset so the
    six columns are not marching in step. All arithmetic, no Math.random — this
    renders on the server first and a random value would hydrate mismatched. */
 const ITEMS = BRANDS.flatMap((brand, i) => {
   const c = COLUMNS[i]
+  const sm = COLUMNS_SM[i]
   return [0, 1].map((copy) => ({
     key: `${brand.id}-${copy}`,
     brand,
@@ -163,6 +197,14 @@ const ITEMS = BRANDS.flatMap((brand, i) => {
     dur: c.dur,
     dir: c.dir,
     delay: -(copy * 0.5 * c.dur + i * 1.3),
+    // compact layout — every item carries BOTH sets and CSS picks one. A JS
+    // width check here would hydrate mismatched and flash on load.
+    xSm: sm.x,
+    sizeSm: sm.size,
+    durSm: sm.dur,
+    dirSm: sm.dir,
+    delaySm: -(copy * 0.5 * sm.dur + i * 0.9),
+    zone: Math.floor(i / 3),
   }))
 })
 
@@ -170,7 +212,10 @@ const ITEMS = BRANDS.flatMap((brand, i) => {
 const CARD_W = 268
 const CARD_H = 168
 
-type Active = { key: string; brandId: string; left: number; top: number } | null
+type Active =
+  | { key: string; brandId: string; dock: false; left: number; top: number }
+  | { key: string; brandId: string; dock: true; atBottom: boolean }
+  | null
 
 export function GroupCompanies() {
   const sectionRef = useRef<HTMLElement>(null)
@@ -178,6 +223,9 @@ export function GroupCompanies() {
   const [active, setActive] = useState<Active>(null)
 
   const activeBrand = BRANDS.find((b) => b.id === active?.brandId) ?? null
+  const cardRef = useRef<HTMLDivElement>(null)
+  /* Remembered from pointerdown, because `click` does not carry pointerType. */
+  const pointerType = useRef<string>("mouse")
 
   /* Twelve looping animations. None of them run off-screen. */
   const visible = useInView(sectionRef)
@@ -189,19 +237,39 @@ export function GroupCompanies() {
     const stage = stageRef.current
     if (!stage) return
     const s = stage.getBoundingClientRect()
-    const d = itemEl.getBoundingClientRect()
-    const cx = d.left + d.width / 2 - s.left
-    const cy = d.top + d.height / 2 - s.top
-    const r = d.width / 2
 
+    /* Which layout is CSS using? Read it from a custom property rather than
+       re-testing the width in JS. One source of truth means the card can never
+       position itself for a layout the stylesheet is not actually rendering. */
+    const dock = getComputedStyle(stage).getPropertyValue("--rf-card-mode").trim() === "dock"
+
+    const d = itemEl.getBoundingClientRect()
+    const cy = d.top + d.height / 2 - s.top
+
+    if (dock) {
+      /* 268px beside a disc needs 294px of clearance, which a 358px stage
+         never has — the old maths flipped left every time and landed at a
+         negative offset, i.e. off-screen. Docked full-width to the half of the
+         stage the disc is NOT in, so the card never covers its own subject.
+         Anchored to an edge, so nothing has to be measured. */
+      setActive({ key, brandId, dock: true, atBottom: cy < s.height / 2 })
+      return
+    }
+
+    const cx = d.left + d.width / 2 - s.left
+    const r = d.width / 2
     const openRight = s.width - (cx + r) >= CARD_W + 26
     const left = openRight ? cx + r + 20 : cx - r - 20 - CARD_W
     const top = Math.max(8, Math.min(s.height - CARD_H - 8, cy - CARD_H / 2))
 
-    setActive({ key, brandId, left, top })
+    setActive({ key, brandId, dock: false, left, top })
   }, [])
 
   const close = useCallback(() => setActive(null), [])
+
+  /* Touch has no pointerleave, so without this a tapped disc would hold the
+     whole shower frozen for the rest of the visit. */
+  useDismiss(active !== null, close, [stageRef, cardRef])
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
@@ -262,10 +330,10 @@ export function GroupCompanies() {
           </p>
         </div>
 
-        {/* ── The rain (lg and up, motion allowed) ────────────────────────── */}
+        {/* ── The rain — every width, wherever motion is allowed ────────── */}
         <div
           ref={stageRef}
-          className="gc-reveal rf-stage relative hidden lg:block"
+          className="gc-reveal rf-stage relative"
           data-hold={active ? "true" : "false"}
         >
           <div className="rf-rain">
@@ -274,15 +342,21 @@ export function GroupCompanies() {
                 key={it.key}
                 className="rf-item"
                 data-dir={it.dir}
+                data-dir-sm={it.dirSm}
+                data-zone={it.zone}
                 data-active={active?.key === it.key ? "true" : "false"}
                 style={{
-                  left: `${it.x}%`,
+                  ["--x" as string]: `${it.x}%`,
+                  ["--x-sm" as string]: `${it.xSm}%`,
                   ["--disc" as string]: `calc(var(--disc-base) * ${it.size})`,
-                  animationDuration: `${it.dur}s`,
-                  animationDelay: `${it.delay}s`,
+                  ["--disc-sm" as string]: `calc(var(--disc-base) * ${it.sizeSm})`,
+                  ["--dur" as string]: `${it.dur}s`,
+                  ["--dur-sm" as string]: `${it.durSm}s`,
+                  ["--delay" as string]: `${it.delay}s`,
+                  ["--delay-sm" as string]: `${it.delaySm}s`,
                 } as React.CSSProperties}
-                onMouseEnter={(e) => open(it.key, it.brand.id, e.currentTarget)}
-                onMouseLeave={close}
+                onPointerEnter={(e) => { if (e.pointerType !== "touch") open(it.key, it.brand.id, e.currentTarget) }}
+                onPointerLeave={(e) => { if (e.pointerType !== "touch") close() }}
               >
                 <a
                   href={it.brand.url}
@@ -291,7 +365,22 @@ export function GroupCompanies() {
                   aria-label={`${it.brand.name} — ${it.brand.sector}. Opens in a new tab.`}
                   className="rf-disc focus-visible:outline-2 focus-visible:outline-offset-8 focus-visible:outline-accent"
                   onFocus={(e) => open(it.key, it.brand.id, e.currentTarget.parentElement as HTMLElement)}
-                  onBlur={close}
+                  onPointerDown={(e) => { pointerType.current = e.pointerType }}
+                  /* On a coarse pointer the first tap must OPEN, not navigate —
+                     otherwise a finger that lands on a moving disc is thrown
+                     straight off the site with no chance to read anything. The
+                     card's own "Visit site" link is the way out. Semantically
+                     this is a compromise: an <a href> that does not navigate.
+                     The clean shape is a <button aria-expanded> on the disc with
+                     the link inside the card, but that changes desktop
+                     behaviour, so it is raised separately rather than smuggled
+                     in here. */
+                  onClick={(e) => {
+                    if (pointerType.current === "touch") {
+                      e.preventDefault()
+                      open(it.key, it.brand.id, e.currentTarget.parentElement as HTMLElement)
+                    }
+                  }}
                 >
                   {/* alt is empty on purpose — the anchor's aria-label already
                       names this link, and a filled alt would announce twice */}
@@ -300,7 +389,7 @@ export function GroupCompanies() {
                     alt=""
                     width={it.brand.w}
                     height={it.brand.h}
-                    sizes="180px"
+                    sizes="(max-width: 1023px) 260px, 200px"
                     className="rf-mark"
                   />
                 </a>
@@ -313,22 +402,50 @@ export function GroupCompanies() {
               close the very thing being read. */}
           {activeBrand && active && (
             <div
+              ref={cardRef}
               className="rf-card glass-panel"
-              aria-hidden="true"
-              style={{ left: active.left, top: active.top, width: CARD_W }}
+              data-dock={active.dock ? "true" : "false"}
+              data-at-bottom={active.dock && active.atBottom ? "true" : "false"}
+              style={
+                active.dock
+                  ? undefined
+                  : { left: active.left, top: active.top, width: CARD_W }
+              }
             >
               <p className="rf-card-eyebrow">{activeBrand.sector}</p>
               <p className="rf-card-name">{activeBrand.name}</p>
               <p className="rf-card-line">{activeBrand.line}</p>
-              <p className="rf-card-cta">
+
+              {/* On a fine pointer the card is inert scenery and the disc
+                  itself is the link. On touch the disc no longer navigates, so
+                  this has to be the real way out — and it needs a 44px target
+                  and a close control, because "tap outside" is undiscoverable
+                  when the whole stage is covered in tap targets. */}
+              <a
+                href={activeBrand.url}
+                target="_blank"
+                rel="noopener noreferrer external"
+                className="rf-card-cta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
                 Visit site <span aria-hidden="true">↗</span>
-              </p>
+              </a>
+
+              <button
+                type="button"
+                onClick={close}
+                aria-label={`Close ${activeBrand.name} details`}
+                className="rf-card-close focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
           )}
         </div>
 
-        {/* ── Grid (below lg, or reduced motion at any width) ─────────────── */}
-        <div className="gc-reveal rf-grid grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:hidden">
+        {/* ── Still grid — the reduced-motion fallback, at any width ─────── */}
+        <div className="gc-reveal rf-grid hidden grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3">
           {BRANDS.map((b) => (
             <a
               key={b.id}
@@ -358,6 +475,8 @@ export function GroupCompanies() {
         .rf-stage {
           --disc-base: 96px;
           --stage-h: 440px;
+          --zone-h: var(--stage-h);   /* one full-height zone on a wide screen */
+          --rf-card-mode: beside;     /* read back by open() — see the comment there */
           height: var(--stage-h);
           max-width: 1000px;
           margin-inline: auto;
@@ -377,10 +496,13 @@ export function GroupCompanies() {
 
         .rf-item {
           position: absolute;
-          top: 0;
+          top: var(--zone-y, 0px);
+          left: var(--x);
           width: var(--disc);
           height: var(--disc);
           margin-left: calc(var(--disc) / -2);
+          animation-duration: var(--dur);
+          animation-delay: var(--delay);
           animation-timing-function: linear;
           animation-iteration-count: infinite;
           will-change: transform;
@@ -388,13 +510,39 @@ export function GroupCompanies() {
         .rf-item[data-dir="down"] { animation-name: rf-down; }
         .rf-item[data-dir="up"]   { animation-name: rf-up; }
 
+        /* Travel is --zone-h, which equals the stage height when there is one
+           zone and half of it when there are two. The keyframes never change. */
         @keyframes rf-down {
           from { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); }
-          to   { transform: translate3d(0, calc(var(--stage-h) + 30px), 0); }
+          to   { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); }
         }
         @keyframes rf-up {
-          from { transform: translate3d(0, calc(var(--stage-h) + 30px), 0); }
+          from { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); }
           to   { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); }
+        }
+
+        /* ── Zoned variants ────────────────────────────────────────────────
+           With two zones a disc still overshoots its own zone by its diameter
+           plus 30px, which is half a zone — so the upper zone's discs were
+           visibly sliding over the lower zone's. A mask cannot fix that: it
+           fades a BAND of the stage, not a disc's own entry and exit, and
+           widening it enough to cover the overlap ate a quarter of the stage.
+
+           Fading inside the keyframes fixes it at the source. Each disc is
+           transparent whenever it is outside its own lane, whatever the zone
+           count, and it costs nothing extra — opacity is already a compositor
+           property and the animation was running anyway. */
+        @keyframes rf-down-z {
+          0%   { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); opacity: 0; }
+          14%  { opacity: 1; }
+          86%  { opacity: 1; }
+          100% { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); opacity: 0; }
+        }
+        @keyframes rf-up-z {
+          0%   { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); opacity: 0; }
+          14%  { opacity: 1; }
+          86%  { opacity: 1; }
+          100% { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); opacity: 0; }
         }
 
         /* Declared AFTER the animation properties above so they actually win —
@@ -404,6 +552,47 @@ export function GroupCompanies() {
            shower stops where it stands, then carries on from exactly there. */
         .rf-stage[data-hold="true"] .rf-item,
         [data-anim="off"] .rf-item { animation-play-state: paused; }
+        /* will-change holds a compositor layer per disc — twelve of them, about
+           3MB of GPU texture at dpr 3. Hand them back when nothing is moving. */
+        [data-anim="off"] .rf-item { will-change: auto; }
+
+        /* ── Compact: three columns, two zones ──────────────────────────────
+           The whole reflow is two custom properties. --zone-h halves the
+           distance a disc travels, and --zone-y offsets the second row of
+           lanes by exactly that much, so brands 3-5 fall through the lower
+           half while 0-2 fall through the upper half. No DOM change, no JS
+           branch, nothing to hydrate wrong.
+
+           min(86px, 24vw) is what keeps it working at 320px: on a Fold cover
+           screen the discs shrink to 77px rather than overflowing. */
+        @media (max-width: 1023.98px) {
+          .rf-stage {
+            --disc-base: min(86px, 24vw);
+            --stage-h: 460px;
+            --zone-h: calc(var(--stage-h) / 2);
+            --rf-card-mode: dock;
+            max-width: none;
+          }
+          .rf-item {
+            left: var(--x-sm);
+            top: var(--zone-y);
+            width: var(--disc-sm);
+            height: var(--disc-sm);
+            margin-left: calc(var(--disc-sm) / -2);
+            animation-duration: var(--dur-sm);
+            animation-delay: var(--delay-sm);
+          }
+          .rf-item[data-zone="0"] { --zone-y: 0px; }
+          .rf-item[data-zone="1"] { --zone-y: var(--zone-h); }
+          /* direction is re-dealt per zone, so these must override the wide
+             rules — they come later in the sheet, which is how they win */
+          .rf-item[data-dir-sm="down"] { animation-name: rf-down-z; }
+          .rf-item[data-dir-sm="up"]   { animation-name: rf-up-z; }
+
+          /* The per-disc fade above replaces the stage mask entirely. Leaving
+             both on would double-dim the top and bottom sixth of the stage. */
+          .rf-rain { mask-image: none; }
+        }
 
         .rf-disc {
           display: block;
@@ -475,12 +664,58 @@ export function GroupCompanies() {
           color: oklch(0.86 0.004 260);
         }
         .rf-card-cta {
+          display: inline-flex;
+          align-items: center;
           margin-top: 11px;
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: oklch(0.78 0.15 292);
+        }
+        .rf-card-close { display: none; }
+
+        /* ── Docked card ──────────────────────────────────────────────────
+           268px beside a disc needs 294px of clearance, which a 358px stage
+           never has: the old placement flipped left every time and landed at a
+           negative offset, i.e. entirely off-screen. Docked to whichever half
+           of the stage the disc is NOT in, so the card never hides its own
+           subject, and anchored to an edge so nothing needs measuring. */
+        .rf-card[data-dock="true"] {
+          left: 8px;
+          right: 8px;
+          width: auto;
+          top: 8px;
+          padding: 14px 16px 14px;
+        }
+        .rf-card[data-dock="true"][data-at-bottom="true"] {
+          top: auto;
+          bottom: 8px;
+        }
+
+        /* On a coarse pointer the disc no longer navigates, so the card has to
+           be the way out — which means it must accept taps. On a fine pointer
+           it stays inert, because drifting the cursor onto it would read as
+           leaving the disc and close the thing being read. */
+        @media (pointer: coarse) {
+          .rf-card { pointer-events: auto; }
+          .rf-card-cta {
+            min-height: 44px;
+            font-size: 11px;
+            padding-right: 44px;
+          }
+          .rf-card-close {
+            display: grid;
+            place-items: center;
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            color: oklch(0.86 0.004 260);
+          }
+          .rf-card-close svg { width: 16px; height: 16px; }
         }
 
         /* ── the still grid ──────────────────────────────────────────────── */
