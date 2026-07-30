@@ -39,8 +39,8 @@ export default async function LeadMagnetPage({ params }: Props) {
   const isPaid = magnet.price > 0
 
   return (
-    <div className="min-h-screen pt-32 pb-24 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+    <main className="min-h-screen pt-24 pb-20 px-4 sm:pt-32 sm:pb-24 sm:px-6">
+      <div className="max-w-5xl mx-auto grid gap-10 lg:grid-cols-2 lg:gap-16 items-start">
 
         {/* ── Left: pitch ── */}
         <div className="space-y-7">
@@ -66,7 +66,7 @@ export default async function LeadMagnetPage({ params }: Props) {
           )}
 
           {magnet.bullets?.length > 0 && (
-            <div className="glass-card p-6">
+            <div className="glass-card p-5 sm:p-6">
               <p className="text-xs font-bold uppercase tracking-widest text-white/40 mb-4">What&apos;s inside</p>
               <ul className="space-y-3">
                 {magnet.bullets.map((b: string, i: number) => (
@@ -83,6 +83,6 @@ export default async function LeadMagnetPage({ params }: Props) {
         {/* ── Right: capture form ── */}
         <MagnetForm slug={magnet.slug} title={magnet.title} price={magnet.price} />
       </div>
-    </div>
+    </main>
   )
 }

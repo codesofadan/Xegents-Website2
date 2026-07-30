@@ -159,7 +159,11 @@ export function AuroraBackground({
       return
     }
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+    /* A phone GPU pays for this shader in the same frames it is trying to
+       paint the hero. Cap it harder on a coarse pointer — the field is
+       smoothstepped to low contrast anyway, so the visual delta is small. */
+    const coarse = window.matchMedia?.("(pointer: coarse)").matches ?? false
+    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1 : 1.5)
     renderer.setPixelRatio(dpr)
     renderer.setClearColor(0x000000, 0)
 

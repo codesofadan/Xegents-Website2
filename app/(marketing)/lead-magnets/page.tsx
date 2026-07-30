@@ -22,10 +22,10 @@ export default async function LeadMagnetsPage() {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-24 px-4 sm:px-6">
+    <main className="min-h-screen pt-24 pb-20 px-4 sm:pt-32 sm:pb-24 sm:px-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-14 space-y-4">
+        <div className="text-center mb-10 space-y-4 sm:mb-14">
           <p className="text-xs font-medium text-accent uppercase tracking-widest">Free Tools &amp; Resources</p>
           <h1 className="text-4xl sm:text-6xl font-black tracking-tighter text-white">
             Steal our <span className="gradient-text">systems.</span>
@@ -43,7 +43,7 @@ export default async function LeadMagnetsPage() {
               <Link
                 key={String(m._id)}
                 href={`/lead-magnet/${m.slug}`}
-                className="group glass-card p-7 flex flex-col gap-4 hover:border-accent/40 transition-colors"
+                className="group glass-card flex flex-col gap-4 p-6 transition-colors hover:border-accent/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:p-7"
               >
                 <span className={`self-start text-[10px] font-bold px-2.5 py-1 rounded-full border ${
                   m.price > 0 ? "text-accent bg-accent/10 border-accent/25" : "text-green-400 bg-green-500/10 border-green-500/25"
@@ -62,6 +62,6 @@ export default async function LeadMagnetsPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   )
 }

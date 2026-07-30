@@ -58,8 +58,8 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
   /* ── Returned from successful Stripe payment ── */
   if (paidReturn) {
     return (
-      <div className="glass-card p-8 text-center space-y-4">
-        <div className="text-4xl">🎉</div>
+      <div role="status" aria-live="polite" className="glass-card p-6 text-center space-y-4 sm:p-8">
+        <CheckIcon />
         <h2 className="text-xl font-black text-white">Payment received!</h2>
         <p className="text-sm text-white/55 leading-relaxed">
           <strong className="text-white">{title}</strong> is on its way to your inbox right now.
@@ -72,8 +72,8 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
   /* ── Free flow done ── */
   if (mode === "free_done") {
     return (
-      <div className="glass-card p-8 text-center space-y-5">
-        <div className="text-4xl">📬</div>
+      <div role="status" aria-live="polite" className="glass-card p-6 text-center space-y-5 sm:p-8">
+        <MailIcon />
         <h2 className="text-xl font-black text-white">Check your inbox!</h2>
         <p className="text-sm text-white/55 leading-relaxed">
           We&apos;ve emailed <strong className="text-white">{title}</strong> to you.
@@ -82,7 +82,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
         {downloadUrl && (
           <a
             href={downloadUrl}
-            className="inline-block px-8 py-3.5 bg-accent text-white rounded-xl text-sm font-bold hover:bg-accent/85 transition-colors"
+            className="inline-flex min-h-11 items-center px-8 py-3.5 bg-accent text-white rounded-xl text-sm font-bold transition-colors hover:bg-accent/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             Or download it right now ↓
           </a>
@@ -94,7 +94,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
   /* ── Bank transfer instructions ── */
   if (mode === "bank") {
     return (
-      <div className="glass-card p-8 space-y-5">
+      <div role="status" aria-live="polite" className="glass-card p-6 space-y-5 sm:p-8">
         <h2 className="text-xl font-black text-white">Almost there — ${price}</h2>
         <p className="text-sm text-white/55 leading-relaxed">
           Transfer <strong className="text-white">${price}</strong> using the details below.
@@ -110,7 +110,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
 
   /* ── The form ── */
   return (
-    <form onSubmit={submit} className="glass-card p-8 space-y-5 lg:sticky lg:top-28">
+    <form onSubmit={submit} className="glass-card space-y-5 p-6 sm:p-8 lg:sticky lg:top-28">
       <div>
         <h2 className="text-xl font-black text-white">
           {isPaid ? `Get it for $${price}` : "Get it free"}
@@ -137,17 +137,19 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
         <div className="space-y-2">
           <span className="block text-xs font-semibold text-white/45">Pay with</span>
           <div className="grid grid-cols-2 gap-2">
-            {([["stripe", "💳 Card (Stripe)"], ["bank", "🏦 Bank transfer"]] as const).map(([key, label]) => (
+            {([["stripe", "Card (Stripe)"], ["bank", "Bank transfer"]] as const).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setPayMethod(key)}
-                className={`py-2.5 rounded-lg text-xs font-bold border transition-colors ${
+                aria-pressed={payMethod === key}
+                className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                   payMethod === key
                     ? "bg-accent/15 border-accent/50 text-white"
                     : "bg-white/[0.04] border-white/10 text-white/45 hover:text-white/70"
                 }`}
               >
+                {key === "stripe" ? <CardIcon /> : <BankIcon />}
                 {label}
               </button>
             ))}
@@ -155,7 +157,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
         </div>
       )}
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-400">{error}</p>}
 
       <button
         type="submit"
@@ -165,10 +167,49 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
         {mode === "sending" ? "Working…" : isPaid ? (payMethod === "stripe" ? `Pay $${price} & get it →` : "Get bank details →") : "Send it to me →"}
       </button>
 
-      <p className="text-[11px] text-white/30 text-center leading-relaxed">
+      <p className="text-xs text-white/40 text-center leading-relaxed">
         No spam, ever. Your info is only used to deliver this and the occasional genuinely useful email.
       </p>
     </form>
+  )
+}
+
+/* Inline SVG rather than emoji. 💳 and 🏦 render as three different glyphs
+   across iOS, Android and Windows, and a screen reader announces them by their
+   Unicode name. */
+function CardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5 shrink-0"
+      fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+    </svg>
+  )
+}
+function BankIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3.5 w-3.5 shrink-0"
+      fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 10h18M5 10v8M19 10v8M9 10v8M15 10v8M2 21h20M12 3l9 5H3z" />
+    </svg>
+  )
+}
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="mx-auto h-10 w-10 text-accent"
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m8 12 3 3 5-6" />
+    </svg>
+  )
+}
+function MailIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="mx-auto h-10 w-10 text-accent"
+      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m2 7 10 6 10-6" />
+    </svg>
   )
 }
 

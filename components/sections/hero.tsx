@@ -166,7 +166,7 @@ export function Hero() {
                 {/* faint static ring under the beam */}
                 <span aria-hidden="true" className="absolute inset-0 rounded-xl border border-white/10" />
                 {/* inner surface (opaque so only the border ring shows the beam) */}
-                <div className="relative rounded-[10.5px] bg-card/90 backdrop-blur-sm shadow-[0_22px_48px_-26px_rgba(0,0,0,0.9)]">
+                <div className="relative rounded-[10.5px] bg-card/90 shadow-[0_22px_48px_-26px_rgba(0,0,0,0.9)]">
                   <StatCounter value={s.value} label={s.label} />
                 </div>
               </div>

@@ -78,8 +78,8 @@ export function Header() {
       <div
         className={`mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 sm:px-6 sm:py-3 transition-all duration-500 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_-18px_rgba(0,0,0,0.75)] ${
           isScrolled
-            ? "border-white/12 bg-background/80 backdrop-blur-xl"
-            : "border-white/[0.08] bg-background/55 backdrop-blur-lg"
+            ? "border-white/12 bg-background/80 backdrop-blur-xl pointer-coarse:bg-background/95 pointer-coarse:backdrop-blur-none"
+            : "border-white/[0.08] bg-background/55 backdrop-blur-lg pointer-coarse:bg-background/90 pointer-coarse:backdrop-blur-none"
         }`}
       >
         {/* Logo */}
@@ -164,7 +164,7 @@ export function Header() {
 
       {/* Mobile menu — matching floating card */}
       {menuOpen && (
-        <div className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-background/95 backdrop-blur-xl px-3 py-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.75)]">
+        <div className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-background/95 backdrop-blur-xl pointer-coarse:backdrop-blur-none px-3 py-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.75)]">
           {siteConfig.nav.map((item) => {
             const isActive = activeId === item.id
             return (
