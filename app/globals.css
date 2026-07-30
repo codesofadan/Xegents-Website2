@@ -281,3 +281,22 @@ html.lenis body {
     backdrop-filter: none;
   }
 }
+
+/* ── Mobile scroll cost ────────────────────────────────────────────────────
+   `background-attachment: fixed` on the body keeps four stacked radial
+   gradients pinned to the viewport, which forces a full-viewport repaint on
+   every scroll frame. On Android that is the single most expensive thing the
+   page does while scrolling; iOS Safari ignores the property outright, so
+   nothing is lost by dropping it on touch. */
+@media (pointer: coarse) {
+  body { background-attachment: scroll; }
+
+  /* The blur is the other half of the cost. `.glass-panel` already has a solid
+     fallback defined twice above for reduced transparency and for browsers
+     without backdrop-filter — reuse that exact colour rather than inventing a
+     third appearance. */
+  .glass-panel {
+    background: oklch(0.125 0.020 275);
+    backdrop-filter: none;
+  }
+}

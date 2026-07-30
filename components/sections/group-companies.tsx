@@ -1,11 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useInView } from "@/hooks/use-in-view"
 import Image from "next/image"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 
-gsap.registerPlugin(ScrollTrigger)
 
 /* ────────────────────────────────────────────────────────────────────────────
    THE GROUP — brand rain.
@@ -176,19 +175,12 @@ type Active = { key: string; brandId: string; left: number; top: number } | null
 export function GroupCompanies() {
   const sectionRef = useRef<HTMLElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
   const [active, setActive] = useState<Active>(null)
 
   const activeBrand = BRANDS.find((b) => b.id === active?.brandId) ?? null
 
   /* Twelve looping animations. None of them run off-screen. */
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+  const visible = useInView(sectionRef)
 
   /* Measure where the disc is, then open the card on whichever side has room.
      The rect is read in the same tick the freeze is requested, so it is the
@@ -262,7 +254,7 @@ export function GroupCompanies() {
             Trusted By
           </p>
           <h2 className="gc-header text-3xl sm:text-5xl font-black tracking-tighter leading-tight text-balance">
-            They have trusted Xegents. <span className="gradient-text">Would you?</span>
+            They have trusted us. <span className="gradient-text">Would you?</span>
           </h2>
           <p className="gc-header mt-4 text-sm sm:text-base text-foreground/55 leading-relaxed">
             Six technology businesses — POS and ERP, security, networking, hosting and

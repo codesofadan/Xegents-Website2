@@ -1,10 +1,8 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 
-gsap.registerPlugin(ScrollTrigger)
 
 const PHRASES = ["WE FIND THE WORK", "YOUR TEAM SHOULDN'T BE DOING", "ASSIGN IT TO AI"]
 const SEP = "★"

@@ -68,8 +68,12 @@ export function Header() {
     }
   }
 
+  /* Safe areas: the layout now uses viewportFit:"cover", so on a notched
+     iPhone this bar would otherwise sit under the notch in portrait and under
+     the rounded corner in landscape. max() keeps the normal padding on every
+     device that reports no inset. */
   return (
-    <header className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
+    <header className="fixed inset-x-0 top-0 z-50 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
       {/* Floating capsule bar */}
       <div
         className={`mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 sm:px-6 sm:py-3 transition-all duration-500 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_-18px_rgba(0,0,0,0.75)] ${

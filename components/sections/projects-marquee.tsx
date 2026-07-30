@@ -1,13 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
+import { useInView } from "@/hooks/use-in-view"
 import Link from "next/link"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { projects } from "@/lib/projects-data"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
-
-gsap.registerPlugin(ScrollTrigger)
 
 /* ────────────────────────────────────────────────────────────────────────────
    PROOF OF WORK — four shipped systems.
@@ -57,7 +55,6 @@ const TRACK = [...projects, ...projects]
 export function ProjectsMarquee() {
   const sectionRef = useRef<HTMLElement>(null)
   const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
-  const [inView, setInView] = useState(false)
 
   // activeId is the slot index — each project appears twice in the track and
   // the rail has to point at the copy actually under the cursor.
@@ -71,13 +68,7 @@ export function ProjectsMarquee() {
     ? DETAILS[active.id] ?? { problem: active.challenge, built: active.solution }
     : null
 
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+  const inView = useInView(sectionRef)
 
   useEffect(() => {
     const ctx = gsap.context(() => {

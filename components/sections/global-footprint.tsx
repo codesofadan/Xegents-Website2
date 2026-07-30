@@ -1,11 +1,9 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
+import { useInView } from "@/hooks/use-in-view"
 import Image from "next/image"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
-
-gsap.registerPlugin(ScrollTrigger)
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 
 /* ────────────────────────────────────────────────────────────────────────────
    GLOBAL FOOTPRINT — where the Barion group operates.
@@ -60,16 +58,10 @@ const MARKETS: Market[] = [
 
 export function GlobalFootprint() {
   const sectionRef = useRef<HTMLElement>(null)
-  const [visible, setVisible] = useState(true)
-
   // Nine looping pulses is nine animations — none of them run off-screen.
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+  // `initial: true` because this gate PAUSES rather than reveals: starting
+  // false would paint one frame of a stalled map on a section already in view.
+  const visible = useInView(sectionRef, { initial: true })
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches

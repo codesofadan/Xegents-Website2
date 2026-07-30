@@ -2,11 +2,9 @@
 
 import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
 
-gsap.registerPlugin(ScrollTrigger)
 
 /* ────────────────────────────────────────────────────────────────────────────
    FOUR WAYS AI MOVES YOUR NUMBERS

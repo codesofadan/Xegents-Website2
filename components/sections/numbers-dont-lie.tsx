@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { gsap } from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { useEffect, useRef } from "react"
+import { useInView } from "@/hooks/use-in-view"
+import { gsap, ScrollTrigger } from "@/lib/gsap"
 import {
   TrendingUp,
   ArrowUpRight,
@@ -14,8 +14,6 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react"
-
-gsap.registerPlugin(ScrollTrigger)
 
 /* ────────────────────────────────────────────────────────────────────────────
    "The Numbers Don't Lie" — market proof, two boxes.
@@ -206,16 +204,11 @@ function Card({ title, sub, children }: { title: string; sub: string; children: 
 
 export function NumbersDontLie() {
   const sectionRef = useRef<HTMLElement>(null)
-  const [visible, setVisible] = useState(true)
 
   // Pause the looping metric marquee while the section is off-screen.
-  useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
+  // Pause-gate, so it starts visible: a section already on screen at load must
+  // not paint one frame with its marquees stalled.
+  const visible = useInView(sectionRef, { initial: true })
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches

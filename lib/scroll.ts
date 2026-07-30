@@ -16,8 +16,16 @@ export function scrollToSection(id: string) {
   if (!el) return false
 
   const lenis = (window as unknown as { __lenis?: LenisLike }).__lenis
-  if (lenis) lenis.scrollTo(el, { offset: HEADER_OFFSET, duration: 1.1 })
-  else el.scrollIntoView({ behavior: "smooth", block: "start" })
+  if (lenis) {
+    lenis.scrollTo(el, { offset: HEADER_OFFSET, duration: 1.1 })
+  } else {
+    /* No Lenis means either it has not mounted yet, or the user asked for
+       reduced motion and it was never constructed. In the second case a
+       "smooth" jump would reintroduce exactly the animation they opted out of,
+       so honour the preference here too. */
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" })
+  }
 
   return true
 }

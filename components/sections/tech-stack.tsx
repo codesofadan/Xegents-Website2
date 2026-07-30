@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef } from "react"
+import { useInView } from "@/hooks/use-in-view"
 
 function CloudIcon() {
   return (
@@ -62,7 +63,6 @@ function BoltIcon() {
 
 export function TechStack() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [inView, setInView] = useState(false)
 
   const technologies = [
     {
@@ -97,22 +97,7 @@ export function TechStack() {
     },
   ]
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true)
-        }
-      },
-      { threshold: 0.1 },
-    )
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
+  const inView = useInView(containerRef, { threshold: 0.1, once: true })
 
   return (
     <section className="py-20 sm:py-28 px-4 sm:px-6 border-t border-border" ref={containerRef}>

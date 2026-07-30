@@ -1,11 +1,28 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import Script from "next/script"
 import { Bricolage_Grotesque } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
 const bricolageGrotesque = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-sans" })
+
+/* The site had no viewport export at all, so it ran on Next's default. Three
+   things are deliberate here:
+
+   viewportFit: "cover" lets the page paint into the notch and home-indicator
+   areas — which is only safe because the fixed header and the footer now pad
+   themselves with env(safe-area-inset-*). Shipping this without that padding
+   puts the logo under the notch in landscape.
+
+   NO maximumScale and NO userScalable. Blocking pinch-zoom fails WCAG 1.4.4
+   and is the single most common accessibility mistake in a viewport tag. */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0C0C18",
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://xegents.com"),

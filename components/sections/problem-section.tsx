@@ -1,28 +1,14 @@
 "use client"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef } from "react"
+import { useInView } from "@/hooks/use-in-view"
 import { WireAnimation } from "@/components/common/wire-animation"
 
 export function ProblemSection() {
-  const [inView, setInView] = useState(false)
+
   const sectionRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true)
-        }
-      },
-      { threshold: 0.1 },
-    )
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
-    }
-
-    return () => observer.disconnect()
-  }, [])
+  const inView = useInView(sectionRef, { threshold: 0.1, once: true })
 
   return (
     <section ref={sectionRef} className="pt-20 sm:pt-28 pb-8 sm:pb-10 px-4 sm:px-6 relative">

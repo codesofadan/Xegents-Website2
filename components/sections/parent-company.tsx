@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useInView } from "@/hooks/use-in-view"
 import Image from "next/image"
 
 const BARION_URL = "https://barionsystems.com/"
@@ -79,29 +80,16 @@ function BarionLink({ children }: { children: React.ReactNode }) {
 }
 
 export function ParentCompany() {
-  const [inView, setInView] = useState(false)
+
   const sectionRef = useRef<HTMLElement>(null)
 
+  /* Reduced motion reveals immediately instead of animating in. Read after
+     mount, never during render — matchMedia in render is a hydration mismatch. */
+  const [reduce, setReduce] = useState(false)
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setInView(true)
-      return
-    }
-    const el = sectionRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true)
-          observer.disconnect()
-        }
-      },
-      { threshold: 0.12 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    setReduce(!!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)
   }, [])
+  const inView = useInView(sectionRef, { threshold: 0.12, once: true }) || reduce
 
   const reveal = inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
 
