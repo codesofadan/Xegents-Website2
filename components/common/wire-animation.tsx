@@ -18,14 +18,22 @@ import { useEffect, useRef, useState } from "react"
    leave the wire anywhere to go, and the labels shrank with them — the wire
    was fine and the thing it connected had become unreadable.
 
-   SO: WIDE IS A LINE, NARROW IS A Z. The Z is the shape that buys a vertical
-   layout its width back. Both boxes get 196 units instead of 112 and 76 — a
-   near-full-width run each — and the wire spends the height it just gained:
-   out of the top box, right, down the diagonal, right again into the bottom.
+   SO: WIDE IS A LINE, NARROW IS AN S. Going vertical is what buys the boxes
+   their width back — both get 200 units instead of 112 and 76 — and the S is
+   what spends the height that gained. MARKETING AGENCY sits top-left, AIOS
+   bottom-right, and one ogee runs between them, so the reading order is the
+   same left-to-right one the wide layout has.
 
-   It is a Z, not an S. Every segment is straight and there is no curve
-   anywhere in this file, which is exactly why the moving tip is plain linear
-   interpolation and getTotalLength()/getPointAtLength() never return.
+   (A Z was tried first, and it was right about the geometry and wrong about
+   the feel: three straight segments meeting at hard corners read as a wiring
+   diagram rather than a connection.)
+
+   THE CURVE IS FLATTENED, NOT MEASURED. It is sampled into a polyline at
+   module load, which lets it reuse every straight-line mechanism already
+   here — <polyline> draws it, strokeDasharray measures it, and the moving tip
+   stays linear interpolation between two sampled points. So there is still no
+   getTotalLength() or getPointAtLength() anywhere in this file, and the curve
+   costs no more per frame than the straight run did.
 
    Both layouts are DATA, not branches. A layout describes its boxes, its two
    wire halves and its socket; the render below is one code path that draws
@@ -63,6 +71,9 @@ type Layout = {
   ports: [Pt, Pt]
   halves: [Half, Half]
   socket: { x: number; y: number; r: number }
+  /** Nubs lie flat when the wire leaves a box vertically. */
+  portVertical?: boolean
+  captionX: number
   captionY: number
   hintY: number
 }
@@ -71,6 +82,33 @@ const half = (pts: Pt[]): Half => {
   const segs = pts.slice(1).map(([x, y], i) => Math.hypot(x - pts[i][0], y - pts[i][1]))
   return { pts, segs, total: segs.reduce((a, b) => a + b, 0) }
 }
+
+/** A point on a cubic Bézier. Plain de Casteljau — no DOM, no measurement. */
+const bezier = (p0: Pt, c0: Pt, c1: Pt, p1: Pt, t: number): Pt => {
+  const u = 1 - t
+  const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t
+  return [
+    a * p0[0] + b * c0[0] + c * c1[0] + d * p1[0],
+    a * p0[1] + b * c0[1] + c * c1[1] + d * p1[1],
+  ]
+}
+
+/**
+ * Flatten half a cubic into a polyline, from `to` back toward `from`.
+ *
+ * Flattening is what lets a curve reuse every straight-line mechanism already
+ * here: <polyline> draws it, strokeDasharray measures it, and the moving tip
+ * stays linear interpolation between two sampled points. Nothing calls
+ * getTotalLength() or getPointAtLength(), so the curve costs no more per frame
+ * than the straight run did. At 24 samples over 40-odd units the chords are
+ * sub-pixel once the viewBox is scaled to a phone.
+ *
+ * @param at0 t at the box end, at1 t at the socket — pass 0→0.5 for the first
+ *   half and 1→0.5 for the second, so both polylines start at their own box
+ *   and grow inward to meet in the middle.
+ */
+const curveHalf = (p0: Pt, c0: Pt, c1: Pt, p1: Pt, at0: number, at1: number, n = 24): Half =>
+  half(Array.from({ length: n + 1 }, (_, i) => bezier(p0, c0, c1, p1, at0 + ((at1 - at0) * i) / n)))
 
 /* ── Wide: one straight run, 310 units each side ──────────────────────────── */
 const FULL: Layout = {
@@ -82,27 +120,44 @@ const FULL: Layout = {
   ports:  [[188, 92], [812, 92]],
   halves: [half([[190, 92], [500, 92]]), half([[810, 92], [500, 92]])],
   socket: { x: 500, y: 92, r: 17 },
-  captionY: 128, hintY: 152,
+  captionX: 500, captionY: 128, hintY: 152,
 }
 
-/* ── Narrow: the Z ─────────────────────────────────────────────────────────
-   Top bar 98 units, diagonal 272, bottom bar 98. The socket sits on the exact
-   midpoint of the diagonal, (180,105), which is what makes the two halves come
-   out at 234 units each — so one dash length drives both and they meet in the
-   middle at the same instant, exactly as the wide layout does. */
+/* ── Narrow: the S ─────────────────────────────────────────────────────────
+   MARKETING AGENCY sits top-LEFT and AIOS bottom-RIGHT, joined by a single
+   ogee. Both boxes get 200 units, which was the whole point of going vertical,
+   and the reading order matches the wide layout: agency first, then AIOS.
+
+   The curve is one cubic: down out of the agency box, sweeping right, then
+   easing back down into AIOS. Its control points sit directly below and above
+   the two ports, which is what makes the tangent vertical at both ends — the
+   wire leaves and arrives square to each box rather than clipping its corner.
+
+   The socket sits at t = 0.5. On a curve with this symmetry that is the exact
+   centre of the S, so the two halves come out the same length and one progress
+   value drives them to meet in the middle at the same instant, as every other
+   layout here does. */
+const S_P0: Pt = [108, 66]   // bottom edge of the agency box
+const S_C0: Pt = [108, 108]
+const S_C1: Pt = [252, 104]
+const S_P1: Pt = [252, 146]  // top edge of the AIOS box
+
 const COMPACT: Layout = {
-  vw: 360, vh: 210,
+  vw: 360, vh: 212,
   boxes: [
-    { x: 6,   y: 14,  w: 196, h: 54, label: "MARKETING AGENCY", size: 15, dy: 5, fit: true },
-    { x: 158, y: 142, w: 196, h: 54, label: "AIOS",             size: 17, dy: 6, tracking: 2 },
+    { x: 8,   y: 12,  w: 200, h: 54, label: "MARKETING AGENCY", size: 15, dy: 5, fit: true },
+    { x: 152, y: 146, w: 200, h: 54, label: "AIOS",             size: 17, dy: 6, tracking: 2 },
   ],
-  ports:  [[204, 41], [156, 169]],
+  ports:  [[108, 62], [252, 150]],
   halves: [
-    half([[202, 41],  [300, 41], [180, 105]]),   // out of the top box, right, down
-    half([[158, 169], [60, 169], [180, 105]]),   // out of the bottom box, left, up
+    curveHalf(S_P0, S_C0, S_C1, S_P1, 0, 0.5),   // out of the agency box, downward
+    curveHalf(S_P0, S_C0, S_C1, S_P1, 1, 0.5),   // out of AIOS, upward
   ],
-  socket: { x: 180, y: 105, r: 14 },
-  captionY: 130, hintY: 130,
+  socket: { x: bezier(S_P0, S_C0, S_C1, S_P1, 0.5)[0], y: bezier(S_P0, S_C0, S_C1, S_P1, 0.5)[1], r: 14 },
+  portVertical: true,
+  /* Off the socket and into the clear block left of the AIOS box, so the
+     label never lands on the curve it is describing. */
+  captionX: 74, captionY: 180, hintY: 180,
 }
 
 /** Where the drawn tip has reached, walking the polyline segment by segment. */
@@ -205,9 +260,15 @@ export function WireAnimation() {
             >
               {b.label}
             </text>
-            {/* Connector nub on the edge this box's wire leaves from */}
+            {/* Connector nub on the edge this box's wire leaves from. It lies
+                flat when the wire leaves vertically, so it reads as a socket
+                on that edge rather than a tab poking through it. */}
             <rect
-              x={L.ports[i][0] - 5} y={L.ports[i][1] - 9} width="10" height="18" rx="2.5"
+              x={L.ports[i][0] - (L.portVertical ? 9 : 5)}
+              y={L.ports[i][1] - (L.portVertical ? 5 : 9)}
+              width={L.portVertical ? 18 : 10}
+              height={L.portVertical ? 10 : 18}
+              rx="2.5"
               fill={a(0.3)} stroke={a(0.55)} strokeWidth="1"
             />
           </g>
@@ -282,13 +343,13 @@ export function WireAnimation() {
         )}
 
         {connected && (
-          <text x={L.socket.x} y={L.captionY} textAnchor="middle" fontSize={compact ? 10 : 11}
+          <text x={L.captionX} y={L.captionY} textAnchor="middle" fontSize={compact ? 10 : 11}
             fontWeight="600" fill={a(0.85)} fontFamily="inherit" letterSpacing="0.5">
             Connected
           </text>
         )}
         {progress < 0.04 && (
-          <text x={L.socket.x} y={L.hintY} textAnchor="middle" fontSize={compact ? 9.5 : 10.5}
+          <text x={L.captionX} y={L.hintY} textAnchor="middle" fontSize={compact ? 9.5 : 10.5}
             fill={muted} fontFamily="inherit">
             scroll to connect
           </text>
