@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
-import { useDismiss } from "@/hooks/use-dismiss"
+import { useDismiss, useCloseAfterRead } from "@/hooks/use-dismiss"
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -104,9 +104,15 @@ export function ServicesPreview() {
      Deliberately the CARD and not the whole grid: on a phone the detail sits
      below the card, so you have to be able to scroll while reading it. */
   const openCardRef = useRef<HTMLButtonElement>(null)
+  const openPanelRef = useRef<HTMLDivElement>(null)
 
-  /* Touch has no pointerleave, so a tapped panel would never close. */
-  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef])
+  /* Touch has no pointerleave, so a tapped panel would never close.
+     Scroll-away is off: the detail sits BELOW the card, so you have to scroll
+     to read it, and closing when the card leaves the viewport shut the panel
+     mid-sentence. useCloseAfterRead replaces it with the rule that matches —
+     nothing closes until the whole panel has been on screen at once. */
+  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef], { closeOnScrollAway: false })
+  useCloseAfterRead(isOpen, openPanelRef, () => setActiveId(null))
 
   const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
 
@@ -155,6 +161,15 @@ export function ServicesPreview() {
           className="svc-viewport relative"
           onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
         >
+          {/* The drawer's own hint line lives inside the drawer, which is
+              display:none below lg — so the stacked layout needs its own.
+              Above the list rather than under it: an affordance you meet
+              after the thing it describes is not an affordance. */}
+          <p className="mb-3 flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/40 lg:hidden">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
+            Click to see the information
+          </p>
+
           {/* One column below lg, four across at lg. The sm:grid-cols-2 step is
               gone on purpose: a half-width card with an accordion under it
               stretches its own row and leaves the neighbour hanging in dead
@@ -217,6 +232,7 @@ export function ServicesPreview() {
                       is the form that actually animates. */}
                   <div
                     id={`svc-panel-${i}`}
+                    ref={isActive ? openPanelRef : undefined}
                     role="region"
                     aria-label={`${svc.title} — detail`}
                     data-active={isActive}

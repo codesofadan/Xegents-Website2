@@ -6,7 +6,7 @@ import Link from "next/link"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { projects } from "@/lib/projects-data"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
-import { useDismiss } from "@/hooks/use-dismiss"
+import { useDismiss, useCloseAfterRead } from "@/hooks/use-dismiss"
 
 /* ────────────────────────────────────────────────────────────────────────────
    PROOF OF WORK — four shipped systems.
@@ -75,12 +75,18 @@ export function ProjectsMarquee() {
      the card and not the whole list, because in the stacked layout the detail
      sits below the card and you have to be able to scroll while reading it. */
   const openCardRef = useRef<HTMLButtonElement>(null)
+  const openPanelRef = useRef<HTMLDivElement>(null)
   const inView = useInView(sectionRef)
 
   /* On touch there is no pointerleave, so without this a tapped panel stays
      open — and because the marquee freezes while it is open, the track would
-     stay stopped for the rest of the visit. */
-  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef])
+     stay stopped for the rest of the visit.
+     Scroll-away is off below lg: the detail sits BELOW the card, so you have
+     to scroll to read it, and closing when the card left the viewport shut the
+     panel mid-sentence. useCloseAfterRead waits until the whole panel has been
+     on screen at once, then lets the next scroll close it. */
+  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef], { closeOnScrollAway: false })
+  useCloseAfterRead(isOpen, openPanelRef, () => setActiveId(null))
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -127,6 +133,14 @@ export function ProjectsMarquee() {
             duplicate half comes out, and each card opens its own detail
             directly underneath it. A 292px card sliding sideways past a thumb
             is not something anyone can read. */}
+        {/* The drawer's own hint line is inside the drawer, which is
+            display:none below lg — so the stacked layout needs its own, and
+            above the list rather than under it. */}
+        <p className="mb-3 flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/40 lg:hidden">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:reveal-pulse_1.8s_ease-in-out_infinite]" />
+          Click to see the information
+        </p>
+
         <div
           ref={gridRef}
           className="work-viewport relative overflow-hidden"
@@ -208,6 +222,7 @@ export function ProjectsMarquee() {
                   opening. */}
               <div
                 id={`work-panel-${i}`}
+                ref={isActive ? openPanelRef : undefined}
                 role="region"
                 aria-label={`${p.name} — detail`}
                 data-active={isActive}

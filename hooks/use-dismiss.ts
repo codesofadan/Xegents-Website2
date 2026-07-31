@@ -34,6 +34,14 @@ export function useDismiss(
   isOpen: boolean,
   close: () => void,
   refs: Array<RefObject<HTMLElement | null>>,
+  /**
+   * Turn off the scroll-away exit. The stacked accordions want a stricter
+   * rule than "the anchor left the viewport": their panel must have been read
+   * first — see useCloseAfterRead. Leaving both on would close the panel the
+   * moment its card scrolled off, which on a phone is while you are still
+   * halfway down the text it opened.
+   */
+  { closeOnScrollAway = true }: { closeOnScrollAway?: boolean } = {},
 ) {
   useEffect(() => {
     if (!isOpen) return
@@ -57,7 +65,7 @@ export function useDismiss(
        card pushes the fourth below the fold, so opening the fourth would open
        and immediately shut it. Only close once it has actually been seen and
        then left. */
-    const anchor = refs[0]?.current
+    const anchor = closeOnScrollAway ? refs[0]?.current : null
     let seen = false
     const io =
       anchor && typeof IntersectionObserver !== "undefined"
@@ -75,5 +83,61 @@ export function useDismiss(
     }
     // `refs` is a stable array of refs from the caller's render scope.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, close])
+  }, [isOpen, close, closeOnScrollAway])
+}
+
+/**
+ * Close a disclosure once it has been READ, not merely once it has moved.
+ *
+ * The stacked accordions open their detail directly under the card you tapped,
+ * so you have to scroll to read it. Closing on "the card left the viewport"
+ * therefore fires while you are still halfway down the text — the panel
+ * vanishes mid-sentence, which is the opposite of helpful.
+ *
+ * The rule that actually matches the intent is: leave it alone until the whole
+ * panel has been on screen at once, and from that moment on, the next scroll
+ * closes it. Nothing disappears before you have seen all of it; nothing stays
+ * open behind you once you have.
+ *
+ * A panel taller than the viewport can never be fully visible, so it counts as
+ * read once its bottom edge has come up into view — the same moment, for a
+ * reader, as having reached the end of it.
+ */
+export function useCloseAfterRead(
+  isOpen: boolean,
+  panelRef: RefObject<HTMLElement | null>,
+  close: () => void,
+) {
+  useEffect(() => {
+    if (!isOpen) return
+    const el = panelRef.current
+    if (!el || typeof IntersectionObserver === "undefined") return
+
+    let read = false
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.intersectionRatio >= 0.99) { read = true; return }
+        // Taller than the screen: seeing the end of it is reading it.
+        const r = e.boundingClientRect
+        if (r.height > window.innerHeight && r.bottom <= window.innerHeight + 2) read = true
+      },
+      // A ratio threshold alone never fires for an oversized panel, so watch
+      // the coarse steps too and let the callback decide.
+      { threshold: [0, 0.5, 0.99, 1] },
+    )
+    io.observe(el)
+
+    let frame = 0
+    const onScroll = () => {
+      if (!read || frame) return
+      frame = requestAnimationFrame(() => { frame = 0; close() })
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+
+    return () => {
+      io.disconnect()
+      window.removeEventListener("scroll", onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [isOpen, close, panelRef])
 }

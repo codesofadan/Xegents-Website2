@@ -149,6 +149,15 @@ export function GlobalFootprint() {
             2. THE LABELS MOVE OUT. Below lg they are hidden and the list below
                carries the names instead — see the note on that list for the
                measurement that forces it. Tapping a dot names it in the chip. */}
+        {/* Below lg the country names come off the map and the only way to
+            name a dot is to tap it — which nothing on the page said. The
+            labels carry that themselves at lg and above, so this is hidden
+            there. */}
+        <p className="mb-3 flex items-center gap-2.5 text-[11px] font-medium uppercase tracking-widest text-foreground/40 lg:hidden">
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent/70 [animation:gf-hint_1.8s_ease-in-out_infinite]" />
+          Click to see
+        </p>
+
         <div className="gf-map relative">
           <div className="gf-stage relative mx-auto w-full" style={{ aspectRatio: "1107 / 609" }}>
 
@@ -345,6 +354,13 @@ export function GlobalFootprint() {
           0%, 100% { opacity: 1; }
           50%      { opacity: 0.5; }
         }
+        /* Local to this section rather than reusing the reveal-pulse defined
+           in the two accordion sections — this one has to stand on its own if
+           either of those is ever removed. */
+        @keyframes gf-hint {
+          0%, 100% { opacity: 1;   transform: scale(1); }
+          50%      { opacity: 0.3; transform: scale(0.75); }
+        }
         .gf-ping { animation: gf-ping 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
         .gf-dot  { animation: gf-blink 2.6s ease-in-out infinite; }
         /* After the shorthand, or it loses — this is eighteen animations that
@@ -366,6 +382,7 @@ export function GlobalFootprint() {
         @media (prefers-reduced-motion: reduce) {
           .gf-ping { display: none; }
           .gf-dot  { animation: none; }
+          [style*="gf-hint"] { animation: none !important; }
         }
       `}</style>
     </section>
