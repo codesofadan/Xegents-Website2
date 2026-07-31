@@ -230,37 +230,57 @@ export function GlobalFootprint() {
           </div>
         </div>
 
-        {/* ── The country list ─────────────────────────────────
-            No longer a fallback — it is the map's conforming alternative, and
-            it earns its place by measurement. Saudi Arabia and the UAE sit
-            2.26% of the map apart, which is 8.1px on a 358px stage; Malaysia
-            to Thailand is 10.5px. Separating them by the 24px WCAG 2.2 asks
-            for would need a map 1062px wide. Map pins whose position carries
-            meaning fall under the Essential exception, so the fix is not to
-            move the pins but to offer a target you can actually hit — these
-            rows, at 44px each. */}
-        <div className="gf-cards mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:hidden">
-          {MARKETS.map((m) => {
-            const isActive = active === m.country
-            return (
-              <button
-                key={m.country}
-                type="button"
-                onClick={() => setActive(isActive ? null : m.country)}
-                aria-pressed={isActive}
-                data-active={isActive ? "true" : "false"}
-                className="gf-card glass-card flex min-h-11 items-center gap-2.5 p-3 text-left transition-colors data-[active=true]:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full bg-accent"
-                  style={{ boxShadow: "0 0 10px 2px oklch(0.60 0.22 292 / 0.55)" }}
-                />
-                <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-                  {m.country}
-                </span>
-              </button>
-            )
-          })}
+        {/* ── The country line ─────────────────────────────────
+            Below lg the map carries the countries on its own: nine blinking
+            dots, and tapping one names it in the chip. This is not a second
+            copy of the map — it is the map's conforming alternative, and it
+            earns its place by measurement. Saudi Arabia and the UAE sit 2.26%
+            of the map apart, which is 8.1px on a 358px stage; Malaysia to
+            Thailand is 10.5px. Separating them by the 24px WCAG 2.2 SC 2.5.8
+            asks for would need a map 1062px wide. Map pins whose position
+            carries meaning fall under that rule's Essential exception, so the
+            fix is not to move the pins but to offer a target you can hit.
+
+            It used to be nine glass cards in a 2-up grid — a second block of
+            furniture roughly as tall as the map above it. Now it is one line
+            of names under a quiet heading: same nine targets, same binding to
+            the dots, a fraction of the height. Each pill clears 36px, well
+            over the 24px minimum. */}
+        <div className="mt-7 lg:hidden">
+          {/* Reads as one sentence running into the pills — "On the ground in ·
+              Malaysia · Pakistan · …". It says presence, not sales territory:
+              these are the countries the group already runs in, which is the
+              whole claim of the section. */}
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/40">
+            On the ground in
+          </h4>
+
+          <ul className="gf-cards mt-3 flex flex-wrap gap-1.5">
+            {MARKETS.map((m) => {
+              const isActive = active === m.country
+              return (
+                <li key={m.country}>
+                  <button
+                    type="button"
+                    onClick={() => setActive(isActive ? null : m.country)}
+                    aria-pressed={isActive}
+                    data-active={isActive ? "true" : "false"}
+                    className="gf-card flex min-h-9 items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-3 text-xs font-semibold text-foreground/80 transition-colors data-[active=true]:border-accent/50 data-[active=true]:bg-accent/10 data-[active=true]:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent"
+                      style={{ boxShadow: "0 0 8px 1.5px oklch(0.60 0.22 292 / 0.55)" }}
+                    />
+                    {m.country}
+                    {m.hq && (
+                      <span className="text-[8px] font-black tracking-widest text-accent">HQ</span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       </div>
 
