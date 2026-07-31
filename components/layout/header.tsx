@@ -32,6 +32,11 @@ export function Header() {
      Gated to below 1024px in the CSS, not here. The desktop bar is finished
      and must not move, and keeping the calculation unconditional means there
      is no width branch in JS to hydrate wrong. */
+  /* Read inside the scroll handler without making it re-subscribe on every
+     open and close. */
+  const menuOpenRef = useRef(menuOpen)
+  menuOpenRef.current = menuOpen
+
   useEffect(() => {
     let frame = 0
     let lastY = window.scrollY
@@ -44,6 +49,12 @@ export function Header() {
       const dy = y - lastY
       if (Math.abs(dy) < DEADZONE) return
       lastY = y
+
+      /* Moving the page is the clearest possible statement that you are done
+         with the menu. Leaving it open over content you are actively scrolling
+         past is the thing that reads as broken. */
+      if (menuOpenRef.current) { setMenuOpen(false); return }
+
       setHidden(y > HIDE_AFTER && dy > 0)
     }
 
