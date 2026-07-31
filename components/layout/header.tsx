@@ -1,22 +1,74 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { siteConfig } from "@/lib/site"
 import { scrollToSection } from "@/lib/scroll"
+import { useDismiss } from "@/hooks/use-dismiss"
+
+/* How far you have to scroll before the bar is allowed to leave at all. Below
+   this the page has barely moved and hiding the nav reads as a glitch. */
+const HIDE_AFTER = 96
+/* Minimum travel before we react. Under this it is thumb jitter, iOS
+   rubber-band, or a Lenis easing tail — all of which would otherwise flap the
+   bar in and out several times a second. */
+const DEADZONE = 8
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [hidden, setHidden] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const headerRef = useRef<HTMLElement>(null)
   const pathname = usePathname()
 
+  /* ── Hide going down, return coming up ────────────────────────────────────
+     One rAF-coalesced listener drives both the scrolled state and the hide
+     state. Nothing is measured — the only read is window.scrollY and the only
+     write is a data attribute; CSS does the transform. So this costs nothing
+     per frame, which matters because it runs on every scroll of every page.
+
+     Gated to below 1024px in the CSS, not here. The desktop bar is finished
+     and must not move, and keeping the calculation unconditional means there
+     is no width branch in JS to hydrate wrong. */
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 50)
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
+    let frame = 0
+    let lastY = window.scrollY
+
+    const read = () => {
+      frame = 0
+      const y = window.scrollY
+      setIsScrolled(y > 50)
+
+      const dy = y - lastY
+      if (Math.abs(dy) < DEADZONE) return
+      lastY = y
+      setHidden(y > HIDE_AFTER && dy > 0)
+    }
+
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(read) }
+
+    read()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      window.removeEventListener("scroll", onScroll)
+    }
   }, [])
+
+  /* An open menu pins the bar. Sliding away a nav someone is actively using is
+     the one thing an auto-hide bar must never do. */
+  const barHidden = hidden && !menuOpen
+
+  /* Tap outside · Escape · scroll away. The header is position:fixed so the
+     hook's IntersectionObserver never fires for it — the two that earn their
+     place here are the outside-pointerdown (capture phase, so it beats the
+     synthetic click a tap generates) and Escape. */
+  useDismiss(menuOpen, () => setMenuOpen(false), [headerRef])
+
+  /* Navigating from the menu used to leave it hanging open over the new page. */
+  useEffect(() => { setMenuOpen(false) }, [pathname])
 
   // Scroll-spy — a section counts as active once it crosses the middle band of
   // the viewport, which keeps the indicator stable instead of flickering
@@ -68,128 +120,153 @@ export function Header() {
     }
   }
 
-  /* Safe areas: the layout now uses viewportFit:"cover", so on a notched
-     iPhone this bar would otherwise sit under the notch in portrait and under
-     the rounded corner in landscape. max() keeps the normal padding on every
+  /* Safe areas: the layout uses viewportFit:"cover", so on a notched iPhone
+     this bar would otherwise sit under the notch in portrait and under the
+     rounded corner in landscape. max() keeps the normal padding on every
      device that reports no inset. */
   return (
-    <header className="fixed inset-x-0 top-0 z-50 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
-      {/* Floating capsule bar */}
-      <div
-        className={`mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 sm:px-6 sm:py-3 transition-all duration-500 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_-18px_rgba(0,0,0,0.75)] ${
-          isScrolled
-            ? "border-white/12 bg-background/80 backdrop-blur-xl pointer-coarse:bg-background/95 pointer-coarse:backdrop-blur-none"
-            : "border-white/[0.08] bg-background/55 backdrop-blur-lg pointer-coarse:bg-background/90 pointer-coarse:backdrop-blur-none"
-        }`}
+    <>
+      <header
+        ref={headerRef}
+        data-hidden={barHidden ? "true" : "false"}
+        className="fixed inset-x-0 top-0 z-50 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-transform duration-300 ease-out motion-reduce:transition-none data-[hidden=true]:-translate-y-[130%] sm:pt-[max(1rem,env(safe-area-inset-top))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))] lg:data-[hidden=true]:translate-y-0"
       >
-        {/* Logo */}
-        <Link
-          href="/"
-          aria-label="Xegents — back to the top"
-          className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
+        {/* Floating capsule bar.
+            On a coarse pointer the blur is off for GPU cost, and 90% opacity
+            over scrolling content was what read as washed out — the content
+            behind stayed legible through the bar. 97% plus a brighter hairline
+            gives it an edge instead of a haze. Fine pointers keep the glass. */}
+        <div
+          className={`mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 sm:px-6 sm:py-3 transition-all duration-500 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_40px_-18px_rgba(0,0,0,0.75)] pointer-coarse:border-white/15 pointer-coarse:bg-background/[0.97] pointer-coarse:backdrop-blur-none ${
+            isScrolled
+              ? "border-white/12 bg-background/80 backdrop-blur-xl"
+              : "border-white/[0.08] bg-background/55 backdrop-blur-lg"
+          }`}
         >
-          <img
-            src="/xegents-logo.png"
-            alt="Xegents Logo"
-            width={40}
-            height={40}
-            className="h-8 w-auto sm:h-9 object-contain"
-            style={{ filter: "brightness(0) invert(1)" }}
-            loading="eager"
-            /* This is the page's LCP element — the header is the first real
-               content painted. eager alone still queues it at Low priority. */
-            fetchPriority="high"
-          />
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-          {siteConfig.nav.map((item) => {
-            const isActive = activeId === item.id
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={(e) => onNavClick(e, item.id)}
-                data-active={isActive}
-                aria-current={isActive ? "true" : undefined}
-                className="group relative inline-block text-sm text-foreground/85 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:text-foreground data-[active=true]:text-foreground"
-              >
-                {/* width reserved by an invisible bold copy → zero layout shift when the visible one bolds */}
-                <span className="relative inline-block">
-                  <span aria-hidden="true" className="invisible font-semibold">{item.label}</span>
-                  <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)] group-data-[active=true]:font-semibold">
-                    {item.label}
-                  </span>
-                </span>
-                {/* purple underline shade grows from the centre on hover, and stays for the active section */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent transition-[width] duration-300 ease-out group-hover:w-full group-data-[active=true]:w-full"
-                />
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* CTA + mobile toggle */}
-        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Logo */}
           <Link
-            href="/#booking-section"
-            onClick={onCtaClick}
-            className="group relative inline-flex items-center gap-2.5 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-xs sm:text-sm font-semibold text-accent-foreground shadow-[0_6px_20px_-6px] shadow-accent/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-accent/70 flex-shrink-0 whitespace-nowrap"
+            href="/"
+            aria-label="Xegents — back to the top"
+            className="flex flex-shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
           >
-            <span>Get Started</span>
-            {/* page-fold arrow: on hover the arrow flies out top-right and a fresh one folds in from bottom-left */}
-            <span className="relative grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-white text-accent">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="absolute h-3.5 w-3.5 transition-transform duration-300 ease-out group-hover:-translate-y-4 group-hover:translate-x-4 motion-reduce:transition-none">
-                <path d="M7 17 17 7" /><path d="M8 7h9v9" />
-              </svg>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="absolute h-3.5 w-3.5 -translate-x-4 translate-y-4 transition-transform duration-300 ease-out group-hover:translate-x-0 group-hover:translate-y-0 motion-reduce:translate-x-0 motion-reduce:translate-y-0">
-                <path d="M7 17 17 7" /><path d="M8 7h9v9" />
-              </svg>
-            </span>
+            <img
+              src="/xegents-logo.png"
+              alt="Xegents Logo"
+              width={40}
+              height={40}
+              className="h-8 w-auto sm:h-9 object-contain"
+              style={{ filter: "brightness(0) invert(1)" }}
+              loading="eager"
+              /* This is the page's LCP element — the header is the first real
+                 content painted. eager alone still queues it at Low priority. */
+              fetchPriority="high"
+            />
           </Link>
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="md:hidden flex h-11 w-11 flex-col items-center justify-center gap-1.5 -mr-2"
-            aria-label="Toggle menu"
-            aria-expanded={menuOpen}
-          >
-            <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "rotate-45 translate-y-2" : ""}`} />
-            <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "opacity-0" : ""}`} />
-            <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile menu — matching floating card */}
-      {menuOpen && (
-        <div className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl border border-white/10 bg-background/95 backdrop-blur-xl pointer-coarse:backdrop-blur-none px-3 py-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.75)]">
-          {siteConfig.nav.map((item) => {
-            const isActive = activeId === item.id
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={(e) => onNavClick(e, item.id)}
-                data-active={isActive}
-                aria-current={isActive ? "true" : undefined}
-                className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground data-[active=true]:bg-accent/10 data-[active=true]:text-foreground transition-colors"
-              >
-                {item.label}
-                <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 rounded-full bg-accent opacity-0 data-[active=true]:opacity-100"
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+            {siteConfig.nav.map((item) => {
+              const isActive = activeId === item.id
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={(e) => onNavClick(e, item.id)}
                   data-active={isActive}
-                />
-              </Link>
-            )
-          })}
+                  aria-current={isActive ? "true" : undefined}
+                  className="group relative inline-block text-sm text-foreground/85 transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:text-foreground data-[active=true]:text-foreground"
+                >
+                  {/* width reserved by an invisible bold copy → zero layout shift when the visible one bolds */}
+                  <span className="relative inline-block">
+                    <span aria-hidden="true" className="invisible font-semibold">{item.label}</span>
+                    <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)] group-data-[active=true]:font-semibold">
+                      {item.label}
+                    </span>
+                  </span>
+                  {/* purple underline shade grows from the centre on hover, and stays for the active section */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent transition-[width] duration-300 ease-out group-hover:w-full group-data-[active=true]:w-full"
+                  />
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* CTA + mobile toggle */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/#booking-section"
+              onClick={onCtaClick}
+              className="group relative inline-flex items-center gap-2.5 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-xs sm:text-sm font-semibold text-accent-foreground shadow-[0_6px_20px_-6px] shadow-accent/50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-accent/70 flex-shrink-0 whitespace-nowrap"
+            >
+              <span>Get Started</span>
+              {/* page-fold arrow: on hover the arrow flies out top-right and a fresh one folds in from bottom-left */}
+              <span className="relative grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-white text-accent">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="absolute h-3.5 w-3.5 transition-transform duration-300 ease-out group-hover:-translate-y-4 group-hover:translate-x-4 motion-reduce:transition-none">
+                  <path d="M7 17 17 7" /><path d="M8 7h9v9" />
+                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="absolute h-3.5 w-3.5 -translate-x-4 translate-y-4 transition-transform duration-300 ease-out group-hover:translate-x-0 group-hover:translate-y-0 motion-reduce:translate-x-0 motion-reduce:translate-y-0">
+                  <path d="M7 17 17 7" /><path d="M8 7h9v9" />
+                </svg>
+              </span>
+            </Link>
+
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="md:hidden flex h-11 w-11 flex-col items-center justify-center gap-1.5 -mr-2"
+              aria-label="Toggle menu"
+              aria-expanded={menuOpen}
+            >
+              <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "rotate-45 translate-y-2" : ""}`} />
+              <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "opacity-0" : ""}`} />
+              <span className={`block w-5 h-0.5 bg-foreground transition-all ${menuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+            </button>
+          </div>
         </div>
+
+        {/* Mobile menu — matching floating card */}
+        {menuOpen && (
+          <div className="md:hidden mx-auto mt-2 max-w-6xl rounded-2xl border border-white/15 bg-background/[0.97] backdrop-blur-xl pointer-coarse:backdrop-blur-none px-3 py-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.75)]">
+            {siteConfig.nav.map((item) => {
+              const isActive = activeId === item.id
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={(e) => onNavClick(e, item.id)}
+                  data-active={isActive}
+                  aria-current={isActive ? "true" : undefined}
+                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground data-[active=true]:bg-accent/10 data-[active=true]:text-foreground transition-colors"
+                >
+                  {item.label}
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 rounded-full bg-accent opacity-0 data-[active=true]:opacity-100"
+                    data-active={isActive}
+                  />
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </header>
+
+      {/* Reach strip. Once the bar has slid away, a thumb at the very top edge
+          is the natural way to ask for it back — scrolling up works too, but
+          only if there is somewhere left to scroll. It sits OUTSIDE the header
+          so it does not inherit the transform that moved the header off-screen,
+          and it only exists while hidden, so it can never swallow a tap meant
+          for the page. 16px is inside the padding every section already has. */}
+      {barHidden && (
+        <button
+          type="button"
+          aria-label="Show navigation"
+          onPointerDown={() => setHidden(false)}
+          className="fixed inset-x-0 top-0 z-40 h-4 lg:hidden"
+        />
       )}
-    </header>
+    </>
   )
 }

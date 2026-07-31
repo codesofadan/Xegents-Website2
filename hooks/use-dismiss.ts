@@ -51,10 +51,20 @@ export function useDismiss(
     document.addEventListener("pointerdown", onPointerDown, true)
     document.addEventListener("keydown", onKeyDown)
 
+    /* An observer reports the CURRENT state as soon as you observe, so a naive
+       `if (!isIntersecting) close()` fires the instant you open something that
+       is off-screen — and in an accordion that is routine: opening the second
+       card pushes the fourth below the fold, so opening the fourth would open
+       and immediately shut it. Only close once it has actually been seen and
+       then left. */
     const anchor = refs[0]?.current
+    let seen = false
     const io =
       anchor && typeof IntersectionObserver !== "undefined"
-        ? new IntersectionObserver(([e]) => { if (!e.isIntersecting) close() }, { threshold: 0 })
+        ? new IntersectionObserver(([e]) => {
+            if (e.isIntersecting) { seen = true; return }
+            if (seen) close()
+          }, { threshold: 0 })
         : null
     if (anchor && io) io.observe(anchor)
 
