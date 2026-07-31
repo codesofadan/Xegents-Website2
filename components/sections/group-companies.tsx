@@ -322,7 +322,7 @@ export function GroupCompanies() {
             Trusted By
           </p>
           <h2 className="gc-header text-3xl sm:text-5xl font-black tracking-tighter leading-tight text-balance">
-            They have trusted us. <span className="gradient-text">Would you?</span>
+            They have trusted Xegents. <span className="gradient-text">Would you?</span>
           </h2>
           <p className="gc-header mt-4 text-sm sm:text-base text-foreground/55 leading-relaxed">
             Six technology businesses — POS and ERP, security, networking, hosting and
