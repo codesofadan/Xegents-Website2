@@ -1,6 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useInView } from "@/hooks/use-in-view"
+
+/* useLayoutEffect warns when it runs on the server, where it is a no-op
+   anyway. Everything it guards here is a browser measurement. */
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect
 
 /* ──────────────────────────────────────────────────────────────────────────
    VIDEO SHOWCASE — 3D circular drag carousel (Xegents brand)
@@ -59,9 +64,12 @@ const SLOTS = [...VIDEOS, ...VIDEOS]
    the same factor so the counter-scale doesn't shrink the type. */
 const SS = 1.5
 
-const CARD_ASPECT  = "9 / 16"
-const AUTO_ADVANCE = false // static set — a finished clip does not pull the next one in
-const TRANSITION   = "transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.55s ease"
+const TRANSITION      = "transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.55s ease"
+const FLAT_TRANSITION = "transform 0.42s cubic-bezier(0.22,1,0.36,1), opacity 0.42s ease"
+
+/** Where the arc gives way to the flat 2-up rail. In rem so it agrees with
+ *  Tailwind's lg: (64rem) even if the root font size is not 16px. */
+const FLAT_Q = "(max-width: 63.99rem)"
 
 /* ────────────────────────────────────────────────────────────────────────────
    CONCAVE ARC — the row curves *toward* the viewer.
@@ -79,7 +87,34 @@ const TRANSITION   = "transform 0.55s cubic-bezier(0.22,1,0.36,1), opacity 0.55s
    position the card sits ~51° rather than a near-edge-on 78°, so its artwork
    is still readable.
 ──────────────────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────────
+   AND WHY IT IS NOT THE ARC ON A PHONE.
+
+   The arc is sized from a radius. At 375px the mobile branch used radius 380
+   against a 186px card, and the geometry simply does not close: the ±1 card's
+   projected inner edge lands at x = 55.6 while the centre card's edge is at
+   93 — a 37px intrusion — and because zIndex is 1000 + translateZ, the
+   intruder is NEARER, so it paints ON TOP of the card it is covering. That is
+   the "videos cutting into each other".
+
+   The tablet branch has the same fault, milder: radius 560 against a 225px
+   card overlaps by 6.6px. Only radius 780 at 1024+ is genuinely clear, at a
+   34.6px gap. So the flat mode below runs to 1024, not 640 — it fixes the
+   tablet too.
+
+   FLAT MODE IS TWO CARDS, AND THEY CANNOT OVERLAP. Each is exactly half the
+   free width; each is pitched by exactly its own width plus the gap. Two
+   half-width boxes a full width apart do not intersect at any viewport size,
+   in any orientation, with any stale state. There is no radius to tune.
+
+   Its geometry lives in CSS, not here — see the style block at the foot of the
+   file. That is deliberate: it means SS, cardH, cardW, radius, theta and step
+   are read ONLY by the arc path, so the wide layout's arithmetic is not merely
+   unchanged, it is untouched.
+──────────────────────────────────────────────────────────────────────────── */
 type Dims = {
+  /** "arc" is the wide 3D coverflow; "flat" is the 2-up rail below 1024px. */
+  mode: "arc" | "flat"
   theta: number   // degrees between adjacent cards
   radius: number  // circle radius — depth is locked to this
   turn: number    // 1 = card sits tangent to the circle
@@ -103,18 +138,63 @@ type Dims = {
 
    `turn` is held just under 1: fully tangent cards foreshorten to cos(66°) —
    about a third of their width — which reads as slivers rather than work. */
-function computeDims(w: number, reduced: boolean): Dims {
-  if (w < 640)
-    return { theta: 22, radius: 380, turn: 0.9, step: 130, cardH: Math.min(w * 0.92, 330), reduced }
+function computeDims(w: number, reduced: boolean, flat: boolean): Dims {
+  // Flat carries the arc numbers untouched so dimsRef.current.step and friends
+  // stay well-defined; nothing in the flat path reads them.
+  if (flat)
+    return { mode: "flat", theta: 22, radius: 380, turn: 0.9, step: 130, cardH: 330, reduced }
   if (w < 1024)
-    return { theta: 22, radius: 560, turn: 0.9, step: 210, cardH: 400, reduced }
-  return   { theta: 22, radius: 780, turn: 0.9, step: 280, cardH: 480, reduced }
+    return { mode: "arc", theta: 22, radius: 560, turn: 0.9, step: 210, cardH: 400, reduced }
+  return     { mode: "arc", theta: 22, radius: 780, turn: 0.9, step: 280, cardH: 480, reduced }
 }
 
 const mod      = (n: number, m: number) => ((n % m) + m) % m
 const wrapRel  = (raw: number, N: number) => raw - N * Math.round(raw / N)
 
-function cardLayout(rel: number, dims: Dims) {
+/** The two slots on screen in flat mode. */
+const inPair = (r: number) => r === 0 || r === 1
+
+/**
+ * @param oldRel where this slot sat on the previous render
+ * @param newRel where it sits now
+ *
+ * Flat mode needs both. Parking every off-screen slot at ±2.5 pitches rather
+ * than at its true rel is what keeps a multi-step dot jump to ONE screen of
+ * travel instead of a card streaking across five — and knowing which slots
+ * were on screen a moment ago is what decides which ones get a transition and
+ * which ones may teleport while nobody can see them.
+ */
+function cardLayout(oldRel: number, newRel: number, dims: Dims) {
+  if (dims.mode === "flat") {
+    // Clamped, so nothing ever animates further than one screen.
+    const park = newRel <= -2 ? -2.5 : newRel >= 3 ? 2.5 : newRel - 0.5
+    const onStage = inPair(newRel)
+    const moving  = onStage || inPair(oldRel)
+    return {
+      /* No perspective, no rotation, no scale, no supersample — one axis.
+         The park factor is interpolated into the string rather than read from
+         a custom property, and that is not cosmetic: with the factor in a
+         var() the transform text is identical on every render, so React never
+         rewrites the property and Chrome never re-evaluates the substitution.
+         The cards silently stop moving while every other signal — park value,
+         opacity, visibility — updates correctly. Baking it in means the string
+         itself changes, which is what actually drives the transition.
+         --vs-cardw and --vs-gap stay as vars: they are constant per breakpoint,
+         so they never need to trigger anything. */
+      transform:     `translate3d(calc(${park} * (var(--vs-cardw) + var(--vs-gap))), 0, 0)`,
+      park,
+      opacity:       onStage ? 1 : 0,
+      dim:           0,          // a depth scrim is meaningless with no depth
+      zIndex:        0,          // constant — overlap is impossible by construction
+      pointerEvents: (onStage ? "auto" : "none") as "none" | "auto",
+      // Held visible through the exit so the fade can finish; it costs nothing
+      // once opacity is 0.
+      visibility:    (moving ? "visible" : "hidden") as "hidden" | "visible",
+      animates:      moving,
+    }
+  }
+
+  const rel = newRel
   const absRel = Math.abs(rel)
   let translateX: number, translateZ: number, rotateY: number, scale: number, opacity: number
 
@@ -146,6 +226,8 @@ function cardLayout(rel: number, dims: Dims) {
     // scale is divided by SS to undo the supersampled layout size. It comes
     // last in the chain, so it never disturbs the translations before it.
     transform:     `translateX(${translateX}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale / SS})`,
+    park:          0,
+    animates:      true,
     opacity,
     dim:           dims.reduced ? 0 : dim,
     // Nearest wins, which is also what physically overlaps.
@@ -188,7 +270,22 @@ export function VideoShowcase() {
   // Start with card 0 in the centre
   const [active,  setActive]  = useState(0)
   const [playing, setPlaying] = useState<number | null>(null)
-  const [dims,    setDims]    = useState<Dims>(() => computeDims(1280, false))
+  /* SSR-stable: the server has no viewport, so it renders the wide branch and
+     the layout effect below corrects it BEFORE the browser paints. Seeding
+     from window here instead would be a hydration mismatch. */
+  const [dims,    setDims]    = useState<Dims>(() => computeDims(1280, false, false))
+  const flat = dims.mode === "flat"
+
+  const sectionRef = useRef<HTMLElement>(null)
+  /* Nothing is fetched until the section is approached. This is the eleventh
+     of thirteen sections; it was issuing seven metadata requests against a
+     27MB video set at page load, for a section nobody had scrolled to. */
+  const armed = useInView(sectionRef, { once: true })
+
+  /* Where each slot sat on the previous render, so flat mode knows which cards
+     are entering and leaving. Updated after commit, so it never triggers one. */
+  const prevActiveRef = useRef(active)
+  useEffect(() => { prevActiveRef.current = active })
 
   const activeRef  = useRef(active);  activeRef.current  = active
   const dimsRef    = useRef(dims);    dimsRef.current    = dims
@@ -199,7 +296,6 @@ export function VideoShowcase() {
   const dragging = useRef(false)
   const didDrag  = useRef(false)
   const rafId   = useRef(0)
-  const chain   = useRef(false)
   const cardRefs  = useRef<(HTMLElement | null)[]>([])
   const scrimRefs = useRef<(HTMLElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
@@ -207,46 +303,52 @@ export function VideoShowcase() {
 
   const activeIndex = mod(active, N)
 
-  // Responsive + reduced-motion — guard against height-only resize events
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
-    let lastW = -1; let lastR = mq.matches
+  /* Responsive + reduced-motion — guard against height-only resize events.
+     A LAYOUT effect, not a passive one: the initial state is the wide branch,
+     and correcting it after paint means a phone briefly renders a 405px-wide
+     card in a 375px viewport. Running before paint means nobody sees it.
+
+     FLAT_Q is in rem and not px on purpose. Tailwind's lg: is min-width 64rem,
+     so at a bumped root font size a px breakpoint here would open a band where
+     neither the flat layout nor the lg: utilities apply. */
+  useIsoLayoutEffect(() => {
+    const rm = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const fq = window.matchMedia(FLAT_Q)
+    let lastW = -1, lastR = rm.matches, lastF = fq.matches
     const apply = () => {
       const w = window.innerWidth
-      if (w === lastW && mq.matches === lastR) return
-      lastW = w; lastR = mq.matches
-      setDims(computeDims(w, mq.matches))
+      if (w === lastW && rm.matches === lastR && fq.matches === lastF) return
+      lastW = w; lastR = rm.matches; lastF = fq.matches
+      setDims(computeDims(w, rm.matches, fq.matches))
     }
     apply()
     window.addEventListener("resize", apply)
-    mq.addEventListener?.("change", apply)
-    return () => { window.removeEventListener("resize", apply); mq.removeEventListener?.("change", apply) }
+    rm.addEventListener?.("change", apply)
+    fq.addEventListener?.("change", apply)
+    return () => {
+      window.removeEventListener("resize", apply)
+      rm.removeEventListener?.("change", apply)
+      fq.removeEventListener?.("change", apply)
+    }
   }, [])
 
-  // Pause a video that drifts off-centre (unless auto-loop is driving it)
+  // Pause a video that drifts off-centre
   useEffect(() => {
-    if (playing !== null && playing !== activeIndex && !chain.current) {
+    if (playing !== null && playing !== activeIndex) {
       videoRefs.current[playing]?.pause()
       setPlaying(null)
     }
   }, [activeIndex, playing])
 
-  // Auto-advance: play new centre card when chain is active
-  useEffect(() => {
-    if (!chain.current) return
-    const el = videoRefs.current[activeIndex]
-    if (!el) return
-    el.currentTime = 0
-    el.play().then(() => setPlaying(activeIndex)).catch(() => { chain.current = false; setPlaying(null) })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
-
-  // Imperatively write transforms — no React re-render per drag frame
+  /* Imperatively write transforms — no React re-render per drag frame.
+     Called ONLY from the drag handlers, so in flat mode (which attaches none)
+     this is dead code and the per-frame cost is exactly zero writes. */
   const paint = useCallback((off: number) => {
     for (let i = 0; i < N; i++) {
       const el = cardRefs.current[i]
       if (!el) continue
-      const s = cardLayout(wrapRel(i - off, N), dimsRef.current)
+      const rel = wrapRel(i - off, N)
+      const s = cardLayout(rel, rel, dimsRef.current)
       el.style.transform     = s.transform
       el.style.opacity       = String(s.opacity)
       el.style.zIndex        = String(s.zIndex)
@@ -261,7 +363,6 @@ export function VideoShowcase() {
 
   const stopPlayback = useCallback(() => {
     if (playingRef.current !== null) videoRefs.current[playingRef.current]?.pause()
-    chain.current = false
     setPlaying(null)
   }, [])
 
@@ -287,16 +388,13 @@ export function VideoShowcase() {
     const el = videoRefs.current[i]
     if (!el) return
     if (el.paused) {
-      el.play().then(() => { setPlaying(i); chain.current = AUTO_ADVANCE }).catch(console.error)
+      el.play().then(() => setPlaying(i)).catch(console.error)
     } else {
-      el.pause(); chain.current = false; setPlaying(null)
+      el.pause(); setPlaying(null)
     }
   }
 
-  const onVideoEnded = () => {
-    setPlaying(null)
-    if (chain.current) setActive(a => a + 1)
-  }
+  const onVideoEnded = () => setPlaying(null)
 
   // ── Pointer drag ──────────────────────────────────────────────────────────
   // IMPORTANT: do NOT setPointerCapture on pointerdown. Capturing on the stage
@@ -359,6 +457,7 @@ export function VideoShowcase() {
   return (
     <section
       id="video-showcase"
+      ref={sectionRef}
       className="relative overflow-hidden pt-24 sm:pt-32 pb-20 sm:pb-28 border-t border-border"
       style={{ transform: "translateZ(0)", isolation: "isolate" }}
     >
@@ -369,49 +468,110 @@ export function VideoShowcase() {
           <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-balance">
             Real results, <span className="gradient-text">on camera.</span>
           </h2>
+          {/* Two strings, one CSS switch. Branching this on client state would
+              be a hydration mismatch for a sentence. */}
           <p className="text-sm sm:text-lg text-foreground/60 max-w-2xl mx-auto">
-            Drag through the AI systems we&apos;ve shipped — see the work, not just the words.
+            <span className="lg:hidden">Step through the AI systems we&apos;ve shipped — see the work, not just the words.</span>
+            <span className="hidden lg:inline">Drag through the AI systems we&apos;ve shipped — see the work, not just the words.</span>
           </p>
         </div>
       </div>
 
+      {/* ── Controls, flat mode only ──────────────────────────────────────
+          Above the artwork, not over it. At 375px the 48px side buttons sat
+          directly on top of the sliced neighbour cards; here they sit on
+          background and the video keeps all of its own width. */}
+      {flat && (
+        <div className="mb-4 flex items-center justify-center gap-2 px-4">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            aria-label="Previous video"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <DoubleChevron dir="left" />
+          </button>
+
+          <div className="flex items-center">
+            {VIDEOS.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goToIndex(i)}
+                aria-label={`Go to video ${i + 1}`}
+                aria-current={i === activeIndex % VIDEOS.length}
+                className="grid h-11 w-7 place-items-center"
+              >
+                <span
+                  className={`block h-1.5 rounded-full transition-all duration-300 ${
+                    i === activeIndex % VIDEOS.length ? "w-5 bg-accent" : "w-1.5 bg-foreground/20"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => step(1)}
+            aria-label="Next video"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <DoubleChevron dir="right" />
+          </button>
+        </div>
+      )}
+
       {/* Stage — full width so side cards have room */}
       <div
-        className="relative w-full select-none touch-pan-y"
+        className="vs-stage relative w-full select-none touch-pan-y"
         /* The label says "drag to scroll" — the cursor should say it too. */
-        style={{ perspective: "2200px", height: stageH, cursor: grabbing ? "grabbing" : "grab" }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={endDrag}
+        style={{
+          perspective: "2200px",
+          height: stageH,
+          cursor: flat ? "auto" : grabbing ? "grabbing" : "grab",
+        }}
+        /* No drag below lg. Not attached rather than guarded, so the
+           willChange promotion of twelve supersampled layers on pointerdown
+           cannot happen at all. */
+        onPointerDown={flat ? undefined : onPointerDown}
+        onPointerMove={flat ? undefined : onPointerMove}
+        onPointerUp={flat ? undefined : endDrag}
+        onPointerCancel={flat ? undefined : endDrag}
+        onPointerLeave={flat ? undefined : endDrag}
         onKeyDown={onKeyDown}
         tabIndex={0}
         role="group"
         aria-roledescription="carousel"
-        aria-label="Video showcase — drag or use arrow keys"
-        data-lenis-prevent
+        /* True in both modes — an attribute cannot be swapped by CSS, and
+           branching it on client state would be a hydration mismatch. */
+        aria-label="Video showcase — use the arrows or the arrow keys"
+        data-lenis-prevent={flat ? undefined : true}
       >
         <div
-          className="absolute inset-0 flex items-center justify-center"
+          className="vs-inner absolute inset-0 flex items-center justify-center"
           style={{ transformStyle: "preserve-3d" }}
         >
           {SLOTS.map((v, i) => {
-            const base      = cardLayout(wrapRel(i - active, N), dims)
-            const isCenter  = i === activeIndex
+            const newRel    = wrapRel(i - active, N)
+            const oldRel    = wrapRel(i - prevActiveRef.current, N)
+            const base      = cardLayout(oldRel, newRel, dims)
+            const isCenter  = flat ? newRel === 0 : i === activeIndex
             const isPlaying = playing === i
 
             return (
               <article
                 key={i}
                 ref={el => { cardRefs.current[i] = el }}
+                className="vs-card"
                 onClick={() => onCardClick(i)}
                 onDragStart={(e) => e.preventDefault()}
                 draggable={false}
                 aria-label={v.title}
                 style={{
                   position:         "absolute",
-                  // laid out SS× large, scaled back down in the transform
+                  // laid out SS× large, scaled back down in the transform.
+                  // Flat mode overrides both in CSS — see the style block.
                   height:           dims.cardH * SS,
                   width:            cardW * SS,
                   // ↓ rounded-sm (4px) — small enough that the scalloped
@@ -423,7 +583,11 @@ export function VideoShowcase() {
                   zIndex:           base.zIndex,
                   pointerEvents:    base.pointerEvents,
                   visibility:       base.visibility,
-                  transition:       TRANSITION,
+                  /* Only the cards entering or leaving the pair get a
+                     transition. The rest teleport to their parking slot while
+                     hidden, which is what keeps a three-step dot jump to one
+                     screen of travel instead of a streak. */
+                  transition:       flat ? (dims.reduced || !base.animates ? "none" : FLAT_TRANSITION) : TRANSITION,
                   backfaceVisibility: "hidden",
                   WebkitUserSelect: "none",
                   userSelect:       "none",
@@ -442,7 +606,11 @@ export function VideoShowcase() {
 
                 <video
                   ref={el => { videoRefs.current[i] = el }}
-                  src={v.src}
+                  /* No src at all until the section is approached. A <video>
+                     with no source is an element with no decoder, no buffer
+                     and no network — twelve of those are free; twelve with a
+                     src against a 27MB set are not. */
+                  src={armed ? v.src : undefined}
                   playsInline
                   /* Inert until it is actually playing. A <video> under the
                      cursor otherwise takes the pointer itself and lets the
@@ -452,11 +620,16 @@ export function VideoShowcase() {
                      video only takes events back when it has real controls. */
                   style={{ pointerEvents: isPlaying ? "auto" : "none" }}
                   onDragStart={(e) => e.preventDefault()}
-                  /* Every card in the arc is on screen now, not just the middle
-                     three — so they all need metadata to paint a first frame.
+                  /* Arc: every card in the visible arc needs metadata to paint
+                     a first frame. Flat: only the two on screen do, which is
+                     seven concurrent range requests down to two.
                      Metadata is a few KB each; the 27MB of video still only
                      downloads on play. */
-                  preload={Math.abs(wrapRel(i - active, N)) <= 3 ? "metadata" : "none"}
+                  preload={
+                    !armed ? "none"
+                      : flat ? (inPair(newRel) ? "metadata" : "none")
+                      : Math.abs(newRel) <= 3 ? "metadata" : "none"
+                  }
                   controls={isPlaying}
                   onEnded={onVideoEnded}
                   className="absolute inset-0 h-full w-full object-cover"
@@ -487,7 +660,7 @@ export function VideoShowcase() {
                     {isCenter && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                         <span
-                          className="flex items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_48px_-6px_rgba(147,51,234,0.7)]"
+                          className="vs-play flex items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_48px_-6px_rgba(147,51,234,0.7)]"
                           style={{ height: 64 * SS, width: 64 * SS }}
                         >
                           <PlayIcon />
@@ -500,18 +673,18 @@ export function VideoShowcase() {
                         on the focused card so the arc doesn't turn into six
                         competing paragraphs. */}
                     <div
-                      className="pointer-events-none absolute bottom-0 left-0 right-0 transition-opacity duration-500"
+                      className="vs-caption pointer-events-none absolute bottom-0 left-0 right-0 transition-opacity duration-500"
                       style={{ padding: 16 * SS, opacity: isCenter ? 1 : 0.78 }}
                     >
                       <p
-                        className="font-semibold text-white leading-tight"
+                        className="vs-title font-semibold text-white leading-tight"
                         style={{ fontSize: 14 * SS }}
                       >
                         {v.title}
                       </p>
                       {v.caption && (
                         <p
-                          className="text-white/55 leading-tight transition-opacity duration-500"
+                          className="vs-sub text-white/55 leading-tight transition-opacity duration-500"
                           style={{ fontSize: 12 * SS, marginTop: 2 * SS, opacity: isCenter ? 1 : 0 }}
                         >
                           {v.caption}
@@ -526,21 +699,23 @@ export function VideoShowcase() {
         </div>
 
         {/* Edge fades — wider and held opaque longer, so the outer cards read
-            as the arc continuing past the frame rather than being sliced. */}
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[11%] z-[1200]"
+            as the arc continuing past the frame rather than being sliced.
+            Nothing bleeds past the frame in flat mode, so they go. */}
+        <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 left-0 w-[11%] z-[1200]"
              style={{ background: "linear-gradient(to right, var(--background) 6%, transparent)" }} />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-[11%] z-[1200]"
+        <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 right-0 w-[11%] z-[1200]"
              style={{ background: "linear-gradient(to left, var(--background) 6%, transparent)" }} />
 
         {/* Side arrows — sit above the fades, vertically centred on the stage,
             so the carousel is steerable without reaching for the controls
-            underneath it. */}
+            underneath it. Replaced above the stage in flat mode, where they
+            would otherwise sit on top of the artwork. */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); step(-1) }}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="Previous video"
-          className="absolute left-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:left-6 sm:h-14 sm:w-14"
+          className="vs-side-arrow absolute left-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:left-6 sm:h-14 sm:w-14"
         >
           <DoubleChevron dir="left" />
         </button>
@@ -549,7 +724,7 @@ export function VideoShowcase() {
           onClick={(e) => { e.stopPropagation(); step(1) }}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label="Next video"
-          className="absolute right-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:right-6 sm:h-14 sm:w-14"
+          className="vs-side-arrow absolute right-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:right-6 sm:h-14 sm:w-14"
         >
           <DoubleChevron dir="right" />
         </button>
@@ -562,7 +737,7 @@ export function VideoShowcase() {
       {/* Dot indicators — the dot stays small, the hit area does not. A bare
           6×6 button is unusable on a phone; each control is 44px tall with the
           mark centred inside it. */}
-      <div className="mt-1 flex items-center justify-center">
+      <div className="vs-dots mt-1 flex items-center justify-center">
         {VIDEOS.map((_, i) => (
           <button
             key={i}
@@ -581,6 +756,60 @@ export function VideoShowcase() {
           </button>
         ))}
       </div>
+
+      <style>{`
+        /* ── Flat mode geometry ────────────────────────────────────────────
+           Every rule is inside a max-width query, so the wide layout never
+           evaluates one of them — and because the flat card's box comes from
+           here rather than from JS, the supersample constant and the whole
+           arc arithmetic stay read-only above 1024px.
+
+           THE OVERLAP PROOF. Each card is half the free width; the pitch is
+           one card plus one gap. Two boxes of width W set (W + gap) apart do
+           not intersect, at any viewport size, in any orientation, however
+           stale the JS state is. There is nothing here to tune.
+
+           THE HEIGHT CAP IS NOT DECORATION. A 9:16 card at half of 619px is
+           550px tall — on a 667x375 landscape phone that is taller than the
+           screen. svh rather than vh on purpose: the small viewport height
+           does not change when the iOS address bar collapses, so scrolling
+           never triggers a relayout. */
+        @media (max-width: 63.99rem) {
+          .vs-stage {
+            --vs-gap: 12px;
+            --vs-pad: 2rem;
+            --vs-cap: 78svh;
+            --vs-cardw: min(
+              calc((100vw - var(--vs-pad) - var(--vs-gap)) / 2),
+              calc(var(--vs-cap) * 9 / 16)
+            );
+            height: calc(var(--vs-cardw) * 16 / 9) !important;
+            /* No depth, so no 3D rendering context over twelve cards. */
+            perspective: none !important;
+          }
+          .vs-inner { transform-style: flat !important; }
+
+          .vs-card {
+            width:  var(--vs-cardw) !important;
+            height: calc(var(--vs-cardw) * 16 / 9) !important;
+            backface-visibility: visible !important;
+          }
+
+          /* The overlays are sized 1.5x to survive the counter-scale the arc
+             applies. There is no counter-scale here, so they go back to 1x. */
+          .vs-play    { height: 64px !important; width: 64px !important; }
+          .vs-play svg { width: 28px !important; height: 28px !important; }
+          .vs-caption { padding: 14px !important; }
+          .vs-title   { font-size: 14px !important; }
+          .vs-sub     { font-size: 12px !important; margin-top: 2px !important; }
+
+          /* Replaced by the control row above the stage. */
+          .vs-side-arrow, .vs-fade, .vs-dots { display: none !important; }
+        }
+        @media (min-width: 40rem) and (max-width: 63.99rem) {
+          .vs-stage { --vs-gap: 16px; --vs-pad: 3rem; }
+        }
+      `}</style>
     </section>
   )
 }
