@@ -98,9 +98,15 @@ export function ServicesPreview() {
   const sectionRef = useRef<HTMLElement>(null)
   const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
   const drawerRef = useRef<HTMLDivElement>(null)
+  /* Points at whichever card is open. It is refs[0] for useDismiss, which
+     watches it with an IntersectionObserver — so scrolling the open card off
+     screen closes its panel and nothing is left hanging open behind you.
+     Deliberately the CARD and not the whole grid: on a phone the detail sits
+     below the card, so you have to be able to scroll while reading it. */
+  const openCardRef = useRef<HTMLButtonElement>(null)
 
   /* Touch has no pointerleave, so a tapped panel would never close. */
-  useDismiss(isOpen, () => setActiveId(null), [gridRef, drawerRef])
+  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef])
 
   const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
 
@@ -149,50 +155,124 @@ export function ServicesPreview() {
           className="svc-viewport relative"
           onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
         >
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* One column below lg, four across at lg. The sm:grid-cols-2 step is
+              gone on purpose: a half-width card with an accordion under it
+              stretches its own row and leaves the neighbour hanging in dead
+              space. Stacked is the only shape that reads right. */}
+          <div className="grid gap-4 lg:grid-cols-4 lg:gap-5">
             {SERVICES.map((svc, i) => {
               const isActive = String(i) === activeId
               return (
-                <button
-                  key={svc.id}
-                  type="button"
-                  data-reveal-id={String(i)}
-                  onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
-                  onFocus={() => setActiveId(String(i))}
-                  /* Tap toggles. onBlur used to close here, which broke the
-                     keyboard path entirely: tabbing INTO the panel to reach its
-                     link blurred the card and shut the panel on the way. */
-                  onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
-                  aria-expanded={isActive}
-                  aria-controls="svc-detail"
-                  data-active={isActive}
-                  className="svc-preview-card glass-card group flex flex-col p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-                >
-                  <div className="mb-6 flex items-start justify-between">
-                    <span className="select-none text-3xl leading-none text-accent/60">{svc.icon}</span>
-                    <span className="select-none text-3xl font-black leading-none text-foreground/10 transition-colors duration-300 group-data-[active=true]:text-accent/25">
-                      {svc.number}
-                    </span>
+                <div key={svc.id} className="svc-cell flex flex-col">
+                  <button
+                    type="button"
+                    data-reveal-id={String(i)}
+                    ref={isActive ? openCardRef : undefined}
+                    onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
+                    onFocus={() => setActiveId(String(i))}
+                    /* Tap toggles. onBlur used to close here, which broke the
+                       keyboard path entirely: tabbing INTO the panel to reach its
+                       link blurred the card and shut the panel on the way. */
+                    onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
+                    aria-expanded={isActive}
+                    aria-controls={`svc-panel-${i}`}
+                    data-active={isActive}
+                    className="svc-preview-card glass-card group flex flex-col p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+                  >
+                    <div className="mb-6 flex items-start justify-between">
+                      <span className="svc-icon select-none text-3xl leading-none text-accent/60">{svc.icon}</span>
+                      <span className="svc-num select-none text-3xl font-black leading-none text-foreground/10 transition-colors duration-300 group-data-[active=true]:text-accent/25">
+                        {svc.number}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <h3 className="mb-2 flex-1 text-lg font-bold transition-colors duration-300 group-data-[active=true]:text-accent">
+                        {svc.title}
+                      </h3>
+                      {/* The affordance the stacked layout was missing. A card
+                          that opens something has to look like it does — hidden
+                          at lg, where hovering the row is the interaction. */}
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        className="svc-chev mb-2 h-4 w-4 shrink-0 text-accent/60 lg:hidden"
+                        fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      >
+                        <path d="m6 9 6 6 6-6" />
+                      </svg>
+                    </div>
+                    <p className="flex-1 text-sm leading-relaxed text-foreground/55">{svc.tagline}</p>
+                  </button>
+
+                  {/* ── The stacked panel ──────────────────────────────────
+                      Below lg the detail belongs under the card you tapped,
+                      not under all four of them. Same 0fr→1fr expansion as the
+                      shared drawer, so height animates without measuring.
+
+                      The row value is an INLINE style, matching the drawer,
+                      and that is not a style preference. Driven from a CSS
+                      attribute selector instead, Chrome applies the value but
+                      refuses to interpolate it — the panel snaps between 0 and
+                      full height with the transition silently ignored. Inline
+                      is the form that actually animates. */}
+                  <div
+                    id={`svc-panel-${i}`}
+                    role="region"
+                    aria-label={`${svc.title} — detail`}
+                    data-active={isActive}
+                    style={{ gridTemplateRows: isActive ? "1fr" : "0fr" }}
+                    className="svc-panel grid transition-[grid-template-rows] duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] lg:hidden"
+                  >
+                    <div className="overflow-hidden">
+                      {isActive && (
+                        <div className="reveal-in px-6 pb-6 pt-5">
+                          <p className="text-sm leading-relaxed text-foreground/60">{svc.detail}</p>
+                          <p className="mt-5 text-[11px] font-semibold uppercase tracking-widest text-foreground/35">
+                            What you get
+                          </p>
+                          <ul className="mt-3 grid gap-2">
+                            {svc.deliverables.map((d, k) => (
+                              <li
+                                key={d}
+                                style={{ ["--i" as string]: k }}
+                                className="svc-line flex items-start gap-2.5 text-sm text-foreground/75"
+                              >
+                                <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                                {d}
+                              </li>
+                            ))}
+                          </ul>
+                          <Link
+                            href="/#booking-section"
+                            className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent transition-all hover:gap-3"
+                          >
+                            Start with this <span aria-hidden="true">→</span>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="mb-2 text-lg font-bold transition-colors duration-300 group-data-[active=true]:text-accent">
-                    {svc.title}
-                  </h3>
-                  <p className="flex-1 text-sm leading-relaxed text-foreground/55">{svc.tagline}</p>
-                </button>
+                </div>
               )
             })}
           </div>
         </div>
 
-        {/* Drawer. Deliberately NOT a glass-card — it is tinted at the top
-            where it meets the row and fades down, so it reads as the card
-            above it opened rather than as a fifth card. */}
+        {/* Drawer — the wide layout only. Deliberately NOT a glass-card: it is
+            tinted at the top where it meets the row and fades down, so it
+            reads as the card above it opened rather than as a fifth card.
+
+            Below lg this is display:none and each card carries its own panel
+            instead. Both are rendered rather than one being moved: a single
+            panel that changes parent by breakpoint would have to unmount and
+            remount, losing its open state at the exact moment someone rotates
+            their phone. */}
         <div
           id="svc-detail"
           ref={drawerRef}
           role="region"
           aria-live="polite"
-          className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
+          className="reveal-drawer relative mt-5 hidden overflow-hidden rounded-xl border border-border lg:block"
         >
           {/* Rail — slides to sit under the active card and matches its width */}
           <span
@@ -280,9 +360,121 @@ export function ServicesPreview() {
           50%      { opacity: 0.3; transform: scale(0.75); }
         }
         .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+        /* ── Stacked accordion, below lg only ──────────────────────────────
+           Every rule in this block is inside a max-width query. The wide
+           layout does not see one line of it. */
+        @media (max-width: 1023.98px) {
+          /* Chrome only clips a transitioning grid row if the container has
+             something to clip against, so the border lives here and the height
+             lives inline. */
+          .svc-panel {
+            border: 1px solid transparent;
+            border-top: 0;
+            border-radius: 0 0 12px 12px;
+            margin-top: -1px;   /* sit on the card's bottom edge, not below it */
+            transition: border-color 300ms ease, background-color 300ms ease;
+          }
+          .svc-panel[data-active="true"] {
+            border-color: oklch(0.60 0.22 292 / 0.45);
+            background:
+              linear-gradient(to bottom, oklch(0.60 0.22 292 / 0.07), transparent 45%),
+              oklch(0.10 0.010 265);
+          }
+
+          /* Containing block for the two pseudo-elements below, and a clip so
+             the top hairline stops at the rounded corners. Scoped in here
+             rather than added as a class: position:relative on the card would
+             otherwise apply at every width, and a card that starts creating a
+             stacking context is not a change the wide layout asked for. */
+          .svc-preview-card {
+            position: relative;
+            overflow: hidden;
+          }
+
+          /* The open card and its panel are one object, so the seam between
+             them has to disappear. */
+          .svc-preview-card[data-active="true"] {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            /* The -translate-y-1 lift would tear a 4px gap in the seam. Both
+               properties are needed: Tailwind v4 emits the standalone
+               translate property rather than a transform, so cancelling the
+               transform alone leaves the lift in place and it reads as an
+               off-by-four in the margin. */
+            transform: none;
+            translate: none;
+          }
+
+          /* An accent edge down the open card, growing rather than appearing. */
+          .svc-preview-card::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            border-radius: 12px 0 0 0;
+            background: linear-gradient(180deg, oklch(0.72 0.16 292), oklch(0.55 0.22 292));
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 380ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          }
+          .svc-preview-card[data-active="true"]::before { transform: scaleY(1); }
+
+          /* A hairline wiping left to right across the top edge as it opens. */
+          .svc-preview-card::after {
+            content: "";
+            position: absolute;
+            left: 0; right: 0; top: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, oklch(0.75 0.18 292), transparent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 520ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          }
+          .svc-preview-card[data-active="true"]::after { transform: scaleX(1); }
+
+          /* Driven from here rather than a group-data variant, so every open
+             state in this block comes from one selector and one source. */
+          .svc-chev { transition: transform 300ms ease; }
+          .svc-preview-card[data-active="true"] .svc-chev { transform: rotate(180deg); }
+
+          /* The number was already changing colour on open; give it presence
+             to match. */
+          .svc-num {
+            transition: color 300ms ease, transform 380ms cubic-bezier(0.34, 1.4, 0.64, 1);
+            transform-origin: right center;
+          }
+          .svc-preview-card[data-active="true"] .svc-num { transform: scale(1.15); }
+
+          /* Soft accent bloom behind the glyph. Drawn with a radial gradient
+             rather than a blur — no backdrop-filter, no extra layer. */
+          .svc-icon {
+            position: relative;
+            display: inline-grid;
+            place-items: center;
+            width: 1.35em; height: 1.35em;
+            border-radius: 50%;
+            transition: background 380ms ease;
+          }
+          .svc-preview-card[data-active="true"] .svc-icon {
+            background: radial-gradient(circle, oklch(0.60 0.22 292 / 0.35) 0%, transparent 70%);
+          }
+
+          /* Deliverables arrive one after another instead of all at once. */
+          .svc-line {
+            animation: reveal-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+            animation-delay: calc(120ms + var(--i) * 60ms);
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .reveal-in { animation: none; }
-          .reveal-drawer [style*="grid-template-rows"] { transition: none !important; }
+          .svc-line { animation: none; }
+          [style*="grid-template-rows"] { transition: none !important; }
+          .svc-panel { transition: none; }
+          .svc-preview-card::before,
+          .svc-preview-card::after { transition: none; }
+          .svc-num, .svc-icon, .svc-chev { transition: none; }
         }
       `}</style>
     </section>

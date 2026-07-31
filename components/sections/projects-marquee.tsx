@@ -70,12 +70,17 @@ export function ProjectsMarquee() {
     : null
 
   const drawerRef = useRef<HTMLDivElement>(null)
+  /* Whichever card is open. It is refs[0] for useDismiss, whose
+     IntersectionObserver then closes the panel when that card scrolls away —
+     the card and not the whole list, because in the stacked layout the detail
+     sits below the card and you have to be able to scroll while reading it. */
+  const openCardRef = useRef<HTMLButtonElement>(null)
   const inView = useInView(sectionRef)
 
   /* On touch there is no pointerleave, so without this a tapped panel stays
      open — and because the marquee freezes while it is open, the track would
      stay stopped for the rest of the visit. */
-  useDismiss(isOpen, () => setActiveId(null), [gridRef, drawerRef])
+  useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -116,8 +121,12 @@ export function ProjectsMarquee() {
         </div>
 
         {/* Cards */}
-        {/* All four in one drifting line — halts under the cursor, and the
-            selection clears the moment you leave. */}
+        {/* Wide: all four in one drifting line — halts under the cursor, and
+            the selection clears the moment you leave.
+            Narrow: the line stops being a line. The track goes vertical, the
+            duplicate half comes out, and each card opens its own detail
+            directly underneath it. A 292px card sliding sideways past a thumb
+            is not something anyone can read. */}
         <div
           ref={gridRef}
           className="work-viewport relative overflow-hidden"
@@ -128,13 +137,16 @@ export function ProjectsMarquee() {
           <div className="work-track flex w-max gap-4 sm:gap-5">
           {TRACK.map((p, i) => {
             const isActive = String(i) === activeId
+            const isDupe = i >= projects.length
+            const d = DETAILS[p.id] ?? { problem: p.challenge, built: p.solution }
             return (
+              <div key={i} data-dupe={isDupe} className="work-cell flex flex-col">
               <button
-                key={i}
                 type="button"
                 data-reveal-id={String(i)}
-                aria-hidden={i >= projects.length}
-                tabIndex={i >= projects.length ? -1 : 0}
+                ref={isActive ? openCardRef : undefined}
+                aria-hidden={isDupe}
+                tabIndex={isDupe ? -1 : 0}
                 onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
                 onFocus={() => setActiveId(String(i))}
                 /* Tap toggles. onBlur used to close here, which broke the
@@ -142,7 +154,7 @@ export function ProjectsMarquee() {
                    link blurred the card and shut the panel on the way. */
                 onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
                 aria-expanded={isActive}
-                aria-controls="work-detail"
+                aria-controls={`work-panel-${i}`}
                 data-active={isActive}
                 className="bento-card glass-card group relative flex w-[min(78vw,320px)] shrink-0 flex-col overflow-hidden p-7 text-left transition-all duration-300 data-[active=true]:border-accent/45 data-[active=true]:-translate-y-1 hover:border-accent/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent sm:w-[380px] sm:p-8"
               >
@@ -160,9 +172,21 @@ export function ProjectsMarquee() {
                   </span>
                 </div>
 
-                <h3 className="relative mb-3 text-2xl sm:text-3xl font-black tracking-tighter leading-none text-white">
-                  {p.name}
-                </h3>
+                <div className="relative flex items-center gap-3">
+                  <h3 className="mb-3 flex-1 text-2xl sm:text-3xl font-black tracking-tighter leading-none text-white">
+                    {p.name}
+                  </h3>
+                  {/* The affordance the stacked layout needs. Hidden at lg,
+                      where hovering the row is the interaction. */}
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="work-chev mb-3 h-4 w-4 shrink-0 text-accent/60 lg:hidden"
+                    fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </div>
                 <p className="relative mb-auto text-sm leading-relaxed text-foreground/55">{p.headline}</p>
 
                 <div className="relative mt-7 flex flex-wrap gap-2 border-t border-border pt-5">
@@ -176,6 +200,52 @@ export function ProjectsMarquee() {
                   ))}
                 </div>
               </button>
+
+              {/* ── The stacked panel ────────────────────────────────────
+                  Row height inline, matching the drawer below. Driven from a
+                  CSS attribute selector instead, Chrome applies the value but
+                  will not interpolate it — the panel snaps instead of
+                  opening. */}
+              <div
+                id={`work-panel-${i}`}
+                role="region"
+                aria-label={`${p.name} — detail`}
+                data-active={isActive}
+                style={{ gridTemplateRows: isActive ? "1fr" : "0fr" }}
+                className="work-panel grid transition-[grid-template-rows] duration-[420ms] ease-[cubic-bezier(0.25,0.46,0.45,0.94)] lg:hidden"
+              >
+                <div className="overflow-hidden">
+                  {isActive && (
+                    <div className="reveal-in px-6 pb-6 pt-5">
+                      <div className="flex flex-wrap gap-2">
+                        {p.results.map((r) => (
+                          <span key={r.label} className="rounded-full border border-accent/25 bg-accent/10 px-2.5 py-1 text-[11px] font-bold text-accent">
+                            {r.value} {r.label}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mt-5 text-[11px] font-semibold uppercase tracking-widest text-foreground/35">The problem</p>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground/60">{d.problem}</p>
+                      <p className="mt-5 text-[11px] font-semibold uppercase tracking-widest text-foreground/35">What we built</p>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground/60">{d.built}</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {p.tags.map((t) => (
+                          <span key={t} className="rounded-md border border-border bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-foreground/50">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                      <Link
+                        href="/#booking-section"
+                        className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-accent transition-all hover:gap-3"
+                      >
+                        Build something like this <span aria-hidden="true">→</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+              </div>
             )
           })}
           </div>
@@ -186,13 +256,16 @@ export function ProjectsMarquee() {
                style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
         </div>
 
-        {/* Drawer — same device as the services section above */}
+        {/* Drawer — same device as the services section above, and like that
+            one it is the wide layout only. Below lg each card carries its own
+            panel instead; both are rendered rather than one being moved, so a
+            rotation cannot unmount an open panel. */}
         <div
           id="work-detail"
           ref={drawerRef}
           role="region"
           aria-live="polite"
-          className="reveal-drawer relative mt-5 overflow-hidden rounded-xl border border-border"
+          className="reveal-drawer relative mt-5 hidden overflow-hidden rounded-xl border border-border lg:block"
         >
           <span
             aria-hidden="true"
@@ -316,10 +389,81 @@ export function ProjectsMarquee() {
           .work-viewport:hover .work-track { animation-play-state: paused; }
         }
         .reveal-in { animation: reveal-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+
+        /* ── Stacked accordion, below lg only ──────────────────────────────
+           Every rule in this block sits inside a max-width query; the wide
+           layout does not see one line of it. */
+        @media (max-width: 1023.98px) {
+          /* The marquee stops being a marquee. A card 78vw wide drifting past
+             a thumb cannot be read, and there is no room to pause it. */
+          .work-viewport { overflow: visible; }
+          .work-track {
+            animation: none;
+            width: auto;
+            flex-direction: column;
+          }
+          /* The second copy exists only so the loop has something to tile
+             with. With no loop it is four duplicate cards of dead scroll. */
+          .work-cell[data-dupe="true"] { display: none; }
+          .work-cell { width: 100%; }
+          .bento-card { width: 100%; }
+
+          /* The edge fades belong to a moving line. Nothing moves now, and a
+             vertical list has no edges to soften. */
+          .work-viewport > [aria-hidden="true"] { display: none; }
+
+          .work-panel {
+            border: 1px solid transparent;
+            border-top: 0;
+            border-radius: 0 0 12px 12px;
+            margin-top: -1px;   /* sit on the card's bottom edge, not below it */
+            transition: border-color 300ms ease;
+          }
+          .work-panel[data-active="true"] {
+            border-color: oklch(0.60 0.22 292 / 0.45);
+            background:
+              linear-gradient(to bottom, oklch(0.60 0.22 292 / 0.07), transparent 45%),
+              oklch(0.10 0.010 265);
+          }
+
+          /* The open card and its panel are one object, so the seam between
+             them has to go. */
+          .bento-card[data-active="true"] {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            /* The -translate-y-1 lift would tear a 4px gap in the seam. Both
+               properties are needed: Tailwind v4 emits the standalone
+               translate property rather than a transform, so cancelling the
+               transform alone leaves the lift in place and it reads as an
+               off-by-four in the margin. */
+            transform: none;
+            translate: none;
+          }
+
+          /* An accent edge down the open card, growing rather than appearing. */
+          .bento-card::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            z-index: 1;
+            background: linear-gradient(180deg, oklch(0.72 0.16 292), oklch(0.55 0.22 292));
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 380ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          }
+          .bento-card[data-active="true"]::before { transform: scaleY(1); }
+
+          .work-chev { transition: transform 300ms ease; }
+          .bento-card[data-active="true"] .work-chev { transform: rotate(180deg); }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .reveal-in { animation: none; }
           .work-track { animation: none; }
-          .reveal-drawer [style*="grid-template-rows"] { transition: none !important; }
+          [style*="grid-template-rows"] { transition: none !important; }
+          .work-panel, .work-chev { transition: none; }
+          .bento-card::before { transition: none; }
         }
       `}</style>
     </section>

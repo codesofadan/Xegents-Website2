@@ -20,12 +20,34 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
       mouse-out would strobe.
 ──────────────────────────────────────────────────────────────────────────── */
 
-export function useRevealRail() {
+/**
+ * @param railQuery Widths at which the rail actually exists. Below 1024px both
+ *   callers stack their cards into an accordion and open the detail directly
+ *   under the tapped card — there is no row for a rail to slide along, and the
+ *   panel is `display: none`. Measuring anyway is not just wasted work: the
+ *   accordion changes the grid's height on every open, which trips the
+ *   ResizeObserver below, which measures, which sets state, which re-renders.
+ *   Gating the whole mechanism is one flag and removes the loop entirely.
+ */
+export function useRevealRail(railQuery = "(min-width: 1024px)") {
   const [activeId, setActiveId] = useState<string | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const [rail, setRail] = useState({ left: 0, width: 0 })
 
+  /* Starts false so the server and the hydration render agree; the effect
+     turns it on where it belongs. Nothing is open at load, so the one frame
+     the rail spends at width 0 is a frame it spends at opacity 0 anyway. */
+  const [railOn, setRailOn] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(railQuery)
+    const sync = () => setRailOn(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [railQuery])
+
   const measure = useCallback(() => {
+    if (!railOn) return
     const grid = gridRef.current
     if (!grid || !activeId) return
     const card = grid.querySelector<HTMLElement>(`[data-reveal-id="${CSS.escape(activeId)}"]`)
@@ -33,7 +55,7 @@ export function useRevealRail() {
     const g = grid.getBoundingClientRect()
     const c = card.getBoundingClientRect()
     setRail({ left: c.left - g.left, width: c.width })
-  }, [activeId])
+  }, [activeId, railOn])
 
   // Layout effect so the rail is already in place on the frame it appears.
   useLayoutEffect(measure, [measure])
@@ -41,14 +63,14 @@ export function useRevealRail() {
   // Card widths change with the grid's column count, so the rail has to
   // re-measure rather than keep a stale offset.
   useEffect(() => {
-    if (!activeId) return
+    if (!activeId || !railOn) return
     const grid = gridRef.current
     if (!grid) return
     const ro = new ResizeObserver(measure)
     ro.observe(grid)
     window.addEventListener("resize", measure)
     return () => { ro.disconnect(); window.removeEventListener("resize", measure) }
-  }, [activeId, measure])
+  }, [activeId, railOn, measure])
 
   return { activeId, setActiveId, gridRef, rail, isOpen: activeId !== null }
 }
