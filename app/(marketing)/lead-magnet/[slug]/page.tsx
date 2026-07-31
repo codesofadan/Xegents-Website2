@@ -53,16 +53,21 @@ export default async function LeadMagnetPage({ params }: Props) {
             <span className="text-[11px] uppercase tracking-widest text-white/30">Lead Magnet</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter leading-[0.95] text-white">
+          {/* break-words throughout: every string on this page is author-entered
+              from the admin, and a long unbroken one (a URL, a product code, a
+              typo) has no break opportunity for the line-breaker to find. On a
+              375px screen that pushes the whole page sideways rather than
+              wrapping. Wrapping mid-word is the lesser evil. */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter leading-[0.95] text-white break-words">
             {magnet.title}<span className="text-accent">.</span>
           </h1>
 
           {magnet.tagline && (
-            <p className="text-lg sm:text-xl text-white/55 leading-relaxed">{magnet.tagline}</p>
+            <p className="text-lg sm:text-xl text-white/55 leading-relaxed break-words">{magnet.tagline}</p>
           )}
 
           {magnet.description && (
-            <p className="text-sm sm:text-base text-white/45 leading-relaxed">{magnet.description}</p>
+            <p className="text-sm sm:text-base text-white/45 leading-relaxed break-words">{magnet.description}</p>
           )}
 
           {magnet.bullets?.length > 0 && (
@@ -72,7 +77,7 @@ export default async function LeadMagnetPage({ params }: Props) {
                 {magnet.bullets.map((b: string, i: number) => (
                   <li key={i} className="flex items-start gap-3 text-sm text-white/70">
                     <span className="text-accent mt-0.5 flex-shrink-0">✓</span>
-                    {b}
+                    <span className="min-w-0 break-words">{b}</span>
                   </li>
                 ))}
               </ul>
