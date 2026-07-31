@@ -54,11 +54,16 @@ function StatCounter({ value, label }: { value: string; label: string }) {
   }, [value])
 
   return (
-    <div ref={ref} className="text-center py-5 px-2 sm:py-6 sm:px-4">
-      {/* At 390px each of the three cells is ~78px of usable width — text-3xl
-          breaks "8–11×" across two lines. Step the value down on mobile. */}
-      <p className="text-2xl sm:text-4xl font-black text-foreground tabular-nums">{display}</p>
-      <p className="text-[10px] sm:text-[11px] text-foreground/40 mt-1.5 leading-tight uppercase tracking-wide text-balance">
+    <div ref={ref} className="flex h-full flex-col items-center justify-center px-1.5 py-5 text-center sm:px-4 sm:py-6">
+      {/* At 375px each of the three cells is ~90px of usable width, and
+          "8–11×" broke across two lines there — which also made that one card
+          taller than its neighbours. whitespace-nowrap forbids the break and
+          the clamp guarantees it fits rather than hoping: 5.2vw is 19.5px at
+          375 and 16.6px at 320, against roughly 87px of room. */}
+      <p className="whitespace-nowrap text-[clamp(1.05rem,5.2vw,1.5rem)] font-black text-foreground tabular-nums sm:text-4xl">
+        {display}
+      </p>
+      <p className="mt-1.5 text-[10px] leading-tight uppercase tracking-wide text-foreground/40 text-balance sm:text-[11px]">
         {label}
       </p>
     </div>
@@ -147,9 +152,12 @@ export function Hero() {
 
         {/* Stats — STATIC cards. A light-beam orbits each border; on hover the
             card lifts out and a soft glowing shadow pulses behind it. */}
-        <div className="hero-el grid grid-cols-3 gap-3 sm:gap-4">
+        {/* items-stretch plus h-full all the way down. Without it each card
+            sized to its own label, so the one whose text wrapped to an extra
+            line stood 13px taller than the two beside it. */}
+        <div className="hero-el grid grid-cols-3 items-stretch gap-3 sm:gap-4">
           {STATS.map((s) => (
-            <div key={s.label} className="group relative hover:z-20">
+            <div key={s.label} className="group relative h-full hover:z-20">
               {/* pulsing glow shadow behind the card — only on hover */}
               <div
                 aria-hidden="true"
@@ -157,7 +165,7 @@ export function Hero() {
               />
 
               {/* card shell — 1.5px padding reveals the orbiting beam as a border */}
-              <div className="relative rounded-xl p-[1.5px] overflow-hidden transition-transform duration-300 ease-out will-change-transform group-hover:-translate-y-1.5 motion-reduce:transform-none">
+              <div className="relative h-full rounded-xl p-[1.5px] overflow-hidden transition-transform duration-300 ease-out will-change-transform group-hover:-translate-y-1.5 motion-reduce:transform-none">
                 {/* traveling light that orbits the edges + corners */}
                 <span
                   aria-hidden="true"
@@ -166,7 +174,7 @@ export function Hero() {
                 {/* faint static ring under the beam */}
                 <span aria-hidden="true" className="absolute inset-0 rounded-xl border border-white/10" />
                 {/* inner surface (opaque so only the border ring shows the beam) */}
-                <div className="relative rounded-[10.5px] bg-card/90 shadow-[0_22px_48px_-26px_rgba(0,0,0,0.9)]">
+                <div className="relative h-full rounded-[10.5px] bg-card/90 shadow-[0_22px_48px_-26px_rgba(0,0,0,0.9)]">
                   <StatCounter value={s.value} label={s.label} />
                 </div>
               </div>
