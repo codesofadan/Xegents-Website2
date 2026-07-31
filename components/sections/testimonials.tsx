@@ -58,10 +58,82 @@ const TESTIMONIALS = [
 // Rendered twice so the track can loop seamlessly.
 const LOOP = [...TESTIMONIALS, ...TESTIMONIALS]
 
+/* Where the marquee stops being a marquee.
+   Above this the six quotes drift past on a 38-second loop, which reads as
+   ambient proof. Below it a 320px card fills the screen, so the same drift is
+   a card sliding out from under you while you are still on the second line.
+   The quotes stay horizontal — six of them stacked would add ~2000px of page —
+   but you drive them instead of watching them. */
+const SLIDER_Q = "(max-width: 1023.98px)"
+
 export function Testimonials() {
   const sectionRef = useRef<HTMLElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
   const tweenRef = useRef<gsap.core.Tween | null>(null)
+
+  /* Starts false so the server and the hydration render agree — the arrows are
+     hidden by CSS at every width anyway, so the one frame before the effect
+     runs is a frame nobody sees. */
+  const [slider, setSlider] = useState(false)
+  const [index, setIndex] = useState(0)
+  const [ends, setEnds] = useState({ start: true, end: false })
+
+  useEffect(() => {
+    const mq = window.matchMedia(SLIDER_Q)
+    const sync = () => setSlider(mq.matches)
+    sync()
+    mq.addEventListener("change", sync)
+    return () => mq.removeEventListener("change", sync)
+  }, [])
+
+  /** Distance from one card to the next, measured rather than assumed — the
+   *  card width is a min() of a viewport unit, so there is no constant to
+   *  hardcode and a stale one would drift a little further out of step with
+   *  every tap. */
+  const pitch = () => {
+    const t = trackRef.current
+    if (!t || t.children.length < 2) return 0
+    return (t.children[1] as HTMLElement).offsetLeft - (t.children[0] as HTMLElement).offsetLeft
+  }
+
+  const step = (delta: number) => {
+    const el = scrollerRef.current
+    const p = pitch()
+    if (!el || !p) return
+    el.scrollBy({ left: delta * p, behavior: "smooth" })
+  }
+
+  const goTo = (i: number) => {
+    const el = scrollerRef.current
+    const p = pitch()
+    if (!el || !p) return
+    el.scrollTo({ left: i * p, behavior: "smooth" })
+  }
+
+  /* One rAF-coalesced listener keeps the dots and the end-stops honest without
+     a layout read per scroll event. Only wired while the slider exists. */
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!slider || !el) return
+    let frame = 0
+    const read = () => {
+      frame = 0
+      const p = pitch()
+      if (p) setIndex(Math.round(el.scrollLeft / p))
+      setEnds({
+        start: el.scrollLeft <= 1,
+        end: el.scrollLeft >= el.scrollWidth - el.clientWidth - 1,
+      })
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(read) }
+    read()
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
+      el.removeEventListener("scroll", onScroll)
+    }
+  }, [slider])
 
   // Header reveal
   useEffect(() => {
@@ -88,6 +160,12 @@ export function Testimonials() {
       tweenRef.current = null
       gsap.set(track, { x: 0 })
       if (reduce) return
+      /* Below 1024px the track is a native scroll container. A GSAP transform
+         on top of scrollLeft would fight it — the arrows would scroll it one
+         way while the tween dragged it the other — so the tween is simply
+         never built. gsap.set above has already parked x at 0, which is where
+         scrollLeft expects to start measuring from. */
+      if (window.matchMedia(SLIDER_Q).matches) return
       // Distance from the start of copy 1 to the start of copy 2 = one full,
       // gap-inclusive tile width → shifting by it tiles perfectly (no jump).
       // Subtract the first child's own offset so the track's px padding isn't
@@ -153,12 +231,15 @@ export function Testimonials() {
             <p className="text-sm text-foreground/45 max-w-xs leading-relaxed">
               Numbers from real engagements. No stock photos, no made-up stats.
             </p>
+            {/* WCAG 2.2.2, and only above lg — below it there is no animation
+                left to pause, so a pause button would be a control that does
+                nothing. The arrows underneath are the control there. */}
             <button
               type="button"
               onClick={toggle}
               aria-pressed={paused}
               aria-label={paused ? "Play the testimonial marquee" : "Pause the testimonial marquee"}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border text-foreground/60 transition-colors hover:border-accent/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="hidden h-11 w-11 shrink-0 place-items-center rounded-full border border-border text-foreground/60 transition-colors hover:border-accent/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent lg:grid"
             >
               {paused ? (
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
@@ -174,7 +255,11 @@ export function Testimonials() {
         </div>
       </div>
 
-      {/* Rotating marquee (left → right) */}
+      {/* Wide: a rotating marquee (left → right).
+          Narrow: the same row, driven by arrows over a native snap scroller.
+          Native scrolling is compositor-driven and costs nothing per frame,
+          which is the whole reason it beats re-implementing the drag we
+          already know how to get wrong. */}
       <div
         className="relative"
         role="region"
@@ -182,12 +267,18 @@ export function Testimonials() {
         onPointerEnter={(e) => { if (e.pointerType !== "touch") pause() }}
         onPointerLeave={(e) => { if (e.pointerType !== "touch") resume() }}
       >
-        <div ref={trackRef} className="flex gap-5 w-max px-4 sm:px-6 will-change-transform">
+        <div ref={scrollerRef} className="testi-scroller" data-lenis-prevent>
+        <div ref={trackRef} className="testi-track flex gap-5 w-max px-4 sm:px-6 will-change-transform">
           {LOOP.map((t, i) => (
             <div
               key={i}
               aria-hidden={i >= TESTIMONIALS.length}
-              className="testi-card glass-card w-[320px] sm:w-[380px] shrink-0 p-7 flex flex-col justify-between gap-6 hover:border-accent/25 transition-colors"
+              data-dupe={i >= TESTIMONIALS.length}
+              /* 320px was a FIXED width inside a 288px container on a 320px
+                 screen — a 32px horizontal overflow on an SE and a Fold cover
+                 display. min() caps it at the viewport and is a no-op at every
+                 width above 376px, so nothing else moves. */
+              className="testi-card glass-card w-[min(85vw,320px)] sm:w-[380px] shrink-0 p-7 flex flex-col justify-between gap-6 hover:border-accent/25 transition-colors"
             >
               {/* Quote */}
               <div>
@@ -220,12 +311,89 @@ export function Testimonials() {
           ))}
         </div>
 
+        </div>
+
         {/* Edge fades */}
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[8%] z-10"
+        <div aria-hidden className="testi-fade pointer-events-none absolute inset-y-0 left-0 w-[8%] z-10"
              style={{ background: "linear-gradient(to right, var(--background), transparent)" }} />
-        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-[8%] z-10"
+        <div aria-hidden className="testi-fade pointer-events-none absolute inset-y-0 right-0 w-[8%] z-10"
              style={{ background: "linear-gradient(to left, var(--background), transparent)" }} />
       </div>
+
+      {/* ── Controls, narrow only ─────────────────────────────────────────
+          Under the cards rather than over them: at 320px an overlaid arrow
+          covers a seventh of the quote it is meant to help you read. */}
+      {slider && (
+        <div className="mt-6 flex items-center justify-center gap-2 px-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => step(-1)}
+            disabled={ends.start}
+            aria-label="Previous testimonial"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border text-foreground/70 transition-colors disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+
+          <div className="flex items-center">
+            {TESTIMONIALS.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Go to testimonial ${i + 1}`}
+                aria-current={i === index}
+                className="grid h-11 w-7 place-items-center"
+              >
+                <span
+                  className={`block h-1.5 rounded-full transition-all duration-300 ${
+                    i === index ? "w-5 bg-accent" : "w-1.5 bg-foreground/20"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => step(1)}
+            disabled={ends.end}
+            aria-label="Next testimonial"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border text-foreground/70 transition-colors disabled:opacity-30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      <style>{`
+        /* ── Narrow: a native snap scroller ────────────────────────────────
+           Every rule is inside a max-width query; the wide layout never sees
+           one of them. */
+        @media (max-width: 1023.98px) {
+          .testi-scroller {
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+          }
+          .testi-scroller::-webkit-scrollbar { display: none; }
+          /* Nothing transforms this any more, so the layer promotion is pure
+             cost — six cards' worth of GPU texture held for no reason. */
+          .testi-track { will-change: auto; }
+          .testi-card { scroll-snap-align: center; }
+          /* The second copy exists only so the loop has something to tile
+             with. With no loop it is six duplicate quotes of dead scroll. */
+          .testi-card[data-dupe="true"] { display: none; }
+          /* A fade over a scroller you control just dims the card you are
+             reading. It belongs to a marquee, not to a slider. */
+          .testi-fade { display: none; }
+        }
+      `}</style>
     </section>
   )
 }
