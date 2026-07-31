@@ -3,66 +3,124 @@
 import { useEffect, useRef, useState } from "react"
 
 /* ────────────────────────────────────────────────────────────────────────────
-   MARKETING AGENCY ⟶ AIOS — one straight line, on every device.
+   MARKETING AGENCY ⟶ AIOS — one connection, two compositions.
 
-   This used to ship two entirely separate SVGs. Above 640px it was the
-   horizontal one-liner: two boxes, a wire drawing inward from each, a socket
-   in the middle. Below 640px it swapped to a different drawing altogether —
-   the boxes stacked and a snaking S-curve wound between them,
+   HISTORY, because it explains the shape of this file. It first shipped as two
+   unrelated SVGs: a horizontal one-liner above 640px, and below that a stacked
+   pair joined by a snaking S-curve,
    "M 350 48 C 360 48 360 200 180 200 C 0 200 0 352 10 352". Same idea, two
-   unrelated shapes, and the phone got the one that reads as a diagram of
-   something complicated rather than a connection.
+   drawings, and the phone got the one that reads as a diagram of something
+   complicated rather than a connection. That was collapsed into a single
+   horizontal composition at every width.
 
-   Now there is one composition and only its measurements change. The box text
-   wraps to two lines on a narrow screen; the wire never does. That is what
-   "one-liner" means here — the connection is a single straight run at every
-   width, because that is the whole point being made.
+   Which was right in principle and wrong in practice. A horizontal run needs
+   horizontal room. At 360px the two boxes were squeezed to 112 and 76 units to
+   leave the wire anywhere to go, and the labels shrank with them — the wire
+   was fine and the thing it connected had become unreadable.
 
-   THIS IS A NET DELETION. A straight line's tip is linear interpolation, which
-   the wide branch already computed. Dropping the curve therefore also drops
-   the path ref, the measured path length, and the getTotalLength() /
-   getPointAtLength() calls that ran on every scroll frame — along with a
-   duplicated socket, ripple and label block.
+   SO: WIDE IS A LINE, NARROW IS A Z. The Z is the shape that buys a vertical
+   layout its width back. Both boxes get 196 units instead of 112 and 76 — a
+   near-full-width run each — and the wire spends the height it just gained:
+   out of the top box, right, down the diagonal, right again into the bottom.
+
+   It is a Z, not an S. Every segment is straight and there is no curve
+   anywhere in this file, which is exactly why the moving tip is plain linear
+   interpolation and getTotalLength()/getPointAtLength() never return.
+
+   Both layouts are DATA, not branches. A layout describes its boxes, its two
+   wire halves and its socket; the render below is one code path that draws
+   whichever it is handed. A third composition would be another object.
 ──────────────────────────────────────────────────────────────────────────── */
 
-type Layout = {
-  vw: number
-  vh: number
-  /** left box */
-  lx: number; lw: number
-  /** right box */
-  rx: number; rw: number
-  boxY: number; boxH: number
-  /** wire: from lTip, meeting at cx, arriving from rTip */
-  wireL: number; wireR: number; cx: number; cy: number
-  socket: number
-  /** type */
-  labelSize: number; twoLine: boolean
-  captionY: number; hintY: number
+type Pt = [number, number]
+
+/** One half of the wire: a polyline running from a box to the socket. */
+type Half = {
+  pts: Pt[]
+  /** length of each segment, in viewBox units */
+  segs: number[]
+  total: number
 }
 
+type Box = {
+  x: number; y: number; w: number; h: number
+  label: string
+  size: number
+  /** baseline offset from the box's vertical centre. Explicit rather than
+      derived from `size`, because the wide layout's two boxes shipped with
+      different offsets (5 and 4) and deriving them would move desktop text by
+      a pixel or two — which is a pixel or two more than zero. */
+  dy: number
+  /** stretch the label to fill the box — keeps a long one inside a short box */
+  fit?: boolean
+  tracking?: number
+}
+
+type Layout = {
+  vw: number; vh: number
+  boxes: [Box, Box]
+  /** centre of each connector nub, on the box edge its wire leaves from */
+  ports: [Pt, Pt]
+  halves: [Half, Half]
+  socket: { x: number; y: number; r: number }
+  captionY: number
+  hintY: number
+}
+
+const half = (pts: Pt[]): Half => {
+  const segs = pts.slice(1).map(([x, y], i) => Math.hypot(x - pts[i][0], y - pts[i][1]))
+  return { pts, segs, total: segs.reduce((a, b) => a + b, 0) }
+}
+
+/* ── Wide: one straight run, 310 units each side ──────────────────────────── */
 const FULL: Layout = {
   vw: 1000, vh: 184,
-  lx: 4, lw: 182, rx: 814, rw: 182,
-  boxY: 58, boxH: 68,
-  wireL: 190, wireR: 810, cx: 500, cy: 92,
-  socket: 17,
-  labelSize: 18, twoLine: false,
+  boxes: [
+    { x: 4,   y: 58, w: 182, h: 68, label: "MARKETING AGENCY", size: 18, dy: 5, fit: true },
+    { x: 814, y: 58, w: 182, h: 68, label: "AIOS",             size: 18, dy: 4, tracking: 1.5 },
+  ],
+  ports:  [[188, 92], [812, 92]],
+  halves: [half([[190, 92], [500, 92]]), half([[810, 92], [500, 92]])],
+  socket: { x: 500, y: 92, r: 17 },
   captionY: 128, hintY: 152,
 }
 
-/* Compact keeps every proportion that matters and only tightens the run. The
-   wire is still 80px of clear space either side of the socket — enough to read
-   as a wire rather than a join. */
+/* ── Narrow: the Z ─────────────────────────────────────────────────────────
+   Top bar 98 units, diagonal 272, bottom bar 98. The socket sits on the exact
+   midpoint of the diagonal, (180,105), which is what makes the two halves come
+   out at 234 units each — so one dash length drives both and they meet in the
+   middle at the same instant, exactly as the wide layout does. */
 const COMPACT: Layout = {
-  vw: 360, vh: 120,
-  lx: 2, lw: 112, rx: 282, rw: 76,
-  boxY: 22, boxH: 56,
-  wireL: 118, wireR: 278, cx: 198, cy: 50,
-  socket: 13,
-  labelSize: 12, twoLine: true,
-  captionY: 92, hintY: 110,
+  vw: 360, vh: 210,
+  boxes: [
+    { x: 6,   y: 14,  w: 196, h: 54, label: "MARKETING AGENCY", size: 15, dy: 5, fit: true },
+    { x: 158, y: 142, w: 196, h: 54, label: "AIOS",             size: 17, dy: 6, tracking: 2 },
+  ],
+  ports:  [[204, 41], [156, 169]],
+  halves: [
+    half([[202, 41],  [300, 41], [180, 105]]),   // out of the top box, right, down
+    half([[158, 169], [60, 169], [180, 105]]),   // out of the bottom box, left, up
+  ],
+  socket: { x: 180, y: 105, r: 14 },
+  captionY: 130, hintY: 130,
 }
+
+/** Where the drawn tip has reached, walking the polyline segment by segment. */
+function tipAt(h: Half, p: number): Pt {
+  let d = h.total * p
+  for (let i = 0; i < h.segs.length; i++) {
+    if (d <= h.segs[i] || i === h.segs.length - 1) {
+      const t = h.segs[i] === 0 ? 0 : Math.min(1, d / h.segs[i])
+      const [x1, y1] = h.pts[i]
+      const [x2, y2] = h.pts[i + 1]
+      return [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]
+    }
+    d -= h.segs[i]
+  }
+  return h.pts[h.pts.length - 1]
+}
+
+const points = (h: Half) => h.pts.map(([x, y]) => `${x},${y}`).join(" ")
 
 export function WireAnimation() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -104,17 +162,11 @@ export function WireAnimation() {
 
   const L = compact ? COMPACT : FULL
   const connected = progress >= 0.97
-  const runL = L.cx - L.wireL
-  const runR = L.wireR - L.cx
-  const lTipX = L.wireL + runL * progress
-  const rTipX = L.wireR - runR * progress
 
   const a = (o: number) => `rgba(147,51,234,${o})`
   const purple = "rgb(147,51,234)"
   const textFg = "rgba(250,250,247,0.92)"
   const muted = "rgba(250,250,247,0.35)"
-
-  const boxMidY = L.boxY + L.boxH / 2
 
   return (
     <div ref={containerRef} className="w-full py-4">
@@ -131,101 +183,112 @@ export function WireAnimation() {
         style={{ overflow: "visible" }}
         aria-hidden="true"
       >
-        {/* LEFT BOX */}
-        <rect
-          x={L.lx} y={L.boxY} width={L.lw} height={L.boxH} rx={compact ? 10 : 12}
-          fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
-          style={{ transition: "stroke 0.4s" }}
-        />
-        {L.twoLine ? (
-          <>
-            <text x={L.lx + L.lw / 2} y={boxMidY - 2} textAnchor="middle"
-              fontSize={L.labelSize} fontWeight="800" fill={textFg} fontFamily="inherit">
-              MARKETING
+        {/* BOXES */}
+        {L.boxes.map((b, i) => (
+          <g key={`b${i}`}>
+            <rect
+              x={b.x} y={b.y} width={b.w} height={b.h} rx={compact ? 10 : 12}
+              fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
+              style={{ transition: "stroke 0.4s" }}
+            />
+            <text
+              x={b.x + b.w / 2}
+              y={b.y + b.h / 2 + b.dy}
+              textAnchor="middle"
+              fontSize={b.size}
+              fontWeight="800"
+              fill={textFg}
+              fontFamily="inherit"
+              letterSpacing={b.tracking}
+              textLength={b.fit ? b.w - 20 : undefined}
+              lengthAdjust={b.fit ? "spacing" : undefined}
+            >
+              {b.label}
             </text>
-            <text x={L.lx + L.lw / 2} y={boxMidY + L.labelSize} textAnchor="middle"
-              fontSize={L.labelSize} fontWeight="800" fill={textFg} fontFamily="inherit">
-              AGENCY
-            </text>
-          </>
-        ) : (
-          <text x={L.lx + L.lw / 2} y={boxMidY + 5} textAnchor="middle"
-            fontSize={L.labelSize} fontWeight="800" fill={textFg} fontFamily="inherit"
-            textLength={L.lw - 10} lengthAdjust="spacing">
-            MARKETING AGENCY
-          </text>
-        )}
-        <rect x={L.lx + L.lw - 3} y={boxMidY - 9} width="10" height="18" rx="2.5"
-          fill={a(0.3)} stroke={a(0.55)} strokeWidth="1" />
+            {/* Connector nub on the edge this box's wire leaves from */}
+            <rect
+              x={L.ports[i][0] - 5} y={L.ports[i][1] - 9} width="10" height="18" rx="2.5"
+              fill={a(0.3)} stroke={a(0.55)} strokeWidth="1"
+            />
+          </g>
+        ))}
 
-        {/* RIGHT BOX */}
-        <rect
-          x={L.rx} y={L.boxY} width={L.rw} height={L.boxH} rx={compact ? 10 : 12}
-          fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
-          style={{ transition: "stroke 0.4s" }}
-        />
-        <text x={L.rx + L.rw / 2} y={boxMidY + (compact ? 4 : 4)} textAnchor="middle"
-          fontSize={compact ? 15 : L.labelSize} fontWeight="800" fill={textFg}
-          fontFamily="inherit" letterSpacing="1.5">
-          AIOS
-        </text>
-        <rect x={L.rx - 7} y={boxMidY - 9} width="10" height="18" rx="2.5"
-          fill={a(0.3)} stroke={a(0.55)} strokeWidth="1" />
+        {/* GUIDE TRACKS — the route the wire will take.
+            Butt caps, deliberately. A round cap on a dashed stroke extends
+            every dash by half the stroke width at both ends, so adding one
+            here would visibly fatten the wide layout's guide — a pixel diff on
+            a screen this change is not allowed to touch. */}
+        {L.halves.map((h, i) => (
+          <polyline
+            key={`g${i}`}
+            points={points(h)}
+            fill="none"
+            stroke={a(0.08)}
+            strokeWidth="2"
+            strokeDasharray="6 5"
+            strokeLinejoin="round"
+          />
+        ))}
 
-        {/* GUIDE TRACKS — one straight run each side, at every width */}
-        <line x1={L.wireL} y1={L.cy} x2={L.cx} y2={L.cy}
-          stroke={a(0.08)} strokeWidth="2" strokeDasharray="6 5" />
-        <line x1={L.wireR} y1={L.cy} x2={L.cx} y2={L.cy}
-          stroke={a(0.08)} strokeWidth="2" strokeDasharray="6 5" />
+        {/* ANIMATED WIRES — both halves are the same length, so one progress
+            value drives them symmetrically and they arrive together. */}
+        {L.halves.map((h, i) => (
+          <polyline
+            key={`w${i}`}
+            points={points(h)}
+            fill="none"
+            stroke={a(0.8)}
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={h.total}
+            strokeDashoffset={h.total * (1 - progress)}
+          />
+        ))}
 
-        {/* ANIMATED WIRES */}
-        <line x1={L.wireL} y1={L.cy} x2={L.cx} y2={L.cy}
-          stroke={a(0.8)} strokeWidth="3.5" strokeLinecap="round"
-          strokeDasharray={runL} strokeDashoffset={runL * (1 - progress)} />
-        <line x1={L.wireR} y1={L.cy} x2={L.cx} y2={L.cy}
-          stroke={a(0.8)} strokeWidth="3.5" strokeLinecap="round"
-          strokeDasharray={runR} strokeDashoffset={runR * (1 - progress)} />
-
-        {/* MOVING TIPS — plain interpolation along a straight line */}
-        {progress > 0.03 && !connected && (
-          <>
-            <circle cx={lTipX} cy={L.cy} r="7" fill={a(0.2)} />
-            <circle cx={lTipX} cy={L.cy} r="4" fill={purple} />
-            <circle cx={rTipX} cy={L.cy} r="7" fill={a(0.2)} />
-            <circle cx={rTipX} cy={L.cy} r="4" fill={purple} />
-          </>
-        )}
+        {/* MOVING TIPS — linear interpolation along a straight segment, at
+            either layout. Nothing is measured. */}
+        {progress > 0.03 && !connected && L.halves.map((h, i) => {
+          const [tx, ty] = tipAt(h, progress)
+          return (
+            <g key={`t${i}`}>
+              <circle cx={tx} cy={ty} r="7" fill={a(0.2)} />
+              <circle cx={tx} cy={ty} r="4" fill={purple} />
+            </g>
+          )
+        })}
 
         {/* SOCKET */}
-        <circle cx={L.cx} cy={L.cy} r={L.socket}
+        <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r}
           fill={connected ? a(0.14) : a(0.04)}
           stroke={connected ? a(0.7) : a(0.18)}
           strokeWidth="1.5" style={{ transition: "all 0.4s ease" }} />
-        <circle cx={L.cx} cy={L.cy} r={connected ? L.socket * 0.53 : L.socket * 0.3}
+        <circle cx={L.socket.x} cy={L.socket.y}
+          r={connected ? L.socket.r * 0.53 : L.socket.r * 0.3}
           fill={connected ? purple : a(0.2)}
           style={{ transition: "all 0.45s ease" }} />
 
         {connected && (
           <>
-            <circle cx={L.cx} cy={L.cy} r={L.socket} fill="none" stroke={a(0.45)} strokeWidth="1.5">
-              <animate attributeName="r" values={`${L.socket};${L.socket * 2.6};${L.socket}`} dur="2.4s" repeatCount="indefinite" />
+            <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r} fill="none" stroke={a(0.45)} strokeWidth="1.5">
+              <animate attributeName="r" values={`${L.socket.r};${L.socket.r * 2.6};${L.socket.r}`} dur="2.4s" repeatCount="indefinite" />
               <animate attributeName="stroke-opacity" values="0.45;0;0.45" dur="2.4s" repeatCount="indefinite" />
             </circle>
-            <circle cx={L.cx} cy={L.cy} r={L.socket * 1.5} fill="none" stroke={a(0.2)} strokeWidth="1">
-              <animate attributeName="r" values={`${L.socket * 1.5};${L.socket * 3};${L.socket * 1.5}`} dur="2.4s" begin="0.4s" repeatCount="indefinite" />
+            <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r * 1.5} fill="none" stroke={a(0.2)} strokeWidth="1">
+              <animate attributeName="r" values={`${L.socket.r * 1.5};${L.socket.r * 3};${L.socket.r * 1.5}`} dur="2.4s" begin="0.4s" repeatCount="indefinite" />
               <animate attributeName="stroke-opacity" values="0.2;0;0.2" dur="2.4s" begin="0.4s" repeatCount="indefinite" />
             </circle>
           </>
         )}
 
         {connected && (
-          <text x={L.cx} y={L.captionY} textAnchor="middle" fontSize={compact ? 10 : 11}
+          <text x={L.socket.x} y={L.captionY} textAnchor="middle" fontSize={compact ? 10 : 11}
             fontWeight="600" fill={a(0.85)} fontFamily="inherit" letterSpacing="0.5">
             Connected
           </text>
         )}
         {progress < 0.04 && (
-          <text x={L.cx} y={L.hintY} textAnchor="middle" fontSize={compact ? 9.5 : 10.5}
+          <text x={L.socket.x} y={L.hintY} textAnchor="middle" fontSize={compact ? 9.5 : 10.5}
             fill={muted} fontFamily="inherit">
             scroll to connect
           </text>
