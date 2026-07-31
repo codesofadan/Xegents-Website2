@@ -63,14 +63,26 @@ import { gsap, ScrollTrigger } from "@/lib/gsap"
    knockout type, so inverting them fills the counters and leaves a white blob.
    They get a lit disc instead, in full colour.
 
-   IT FOLDS RATHER THAN SHRINKS. Six columns across a 358px phone would put
+   IT THINS RATHER THAN SHRINKS. Six columns across a 358px phone would put
    the lane centres 57px apart while the discs are 80-96px wide — every
-   neighbour overlapping by half a disc. So below 1024px the wall folds into
-   three columns stacked in two zones of half the stage height each: brand i
-   takes column i % 3 and zone floor(i / 3). All six still own a lane, none of
-   them ever shares one, and the whole reflow is two custom properties —
-   --zone-h halves the travel, --zone-y offsets the lower row. No second DOM
-   tree, no JS width check, nothing to hydrate wrong.
+   neighbour overlapping by half a disc. Folding into three columns × two
+   half-height zones was the first answer and it was wrong: a disc overshoots
+   its lane by its own diameter plus 30px, which is half a zone, so the upper
+   row visibly slid over the lower one.
+
+   The fix is fewer objects, not cleverer lanes. Below 1024px HALF THE DISCS
+   COME OFF THE STAGE — one copy per brand instead of two, six instead of
+   twelve — and the stage goes back to a single full-height zone. Brand i takes
+   column i % 3, so each column carries exactly two brands. They share a
+   direction and a duration and sit half a cycle apart, which holds them a
+   constant ~300px away from each other against a disc that is at most 86px
+   wide. Overlap is not tuned out; it is arithmetically unavailable.
+
+   Twelve objects in three columns is a traffic jam. Six is weather.
+
+   It is still one DOM tree with no JS width check — the second copy is hidden
+   in CSS and the compact geometry rides on custom properties every item
+   already carries.
 
    TOUCH. Hover is not an input on a phone, and a moving disc that navigates
    the instant a finger lands on it is a trap. On a coarse pointer the first
@@ -164,34 +176,46 @@ const COLUMNS = [
   { x: 91, size: 0.90, dur: 9.7,  dir: "down" },
 ] as const
 
-/** The same six lanes, folded for a narrow screen.
+/** Three lanes for a narrow screen. Brand i takes column i % 3, so each lane
+ *  carries exactly two brands: 0 and 3, 1 and 4, 2 and 5.
  *
- *  Six columns across 358px would put the centres 57px apart while the discs
- *  are 80-96px wide — every neighbour overlapping by half a disc. So the wall
- *  folds instead of shrinking: three columns, stacked in two zones of half the
- *  stage height each. Brand i takes column i % 3 and zone floor(i / 3), so all
- *  six still own a lane of their own and none of them ever shares one.
+ *  DIRECTION AND DURATION ARE PER COLUMN, NOT PER BRAND, and that is
+ *  load-bearing rather than tidy. The two brands in a lane sit half a cycle
+ *  apart. Half a cycle only means a constant separation if they are travelling
+ *  the same way at the same speed — give one of them the opposite direction
+ *  and they close on each other and meet head-on at the quarter mark, which is
+ *  a collision in the middle of the stage rather than the drift it looks like
+ *  on paper.
  *
- *  Directions are re-dealt rather than inherited, so each zone has a mix of
- *  risers and fallers of its own instead of one zone going entirely one way. */
+ *  Same direction, same duration, half a cycle apart ⇒ they are always ~300px
+ *  apart on a 460px stage, against a disc at most 86px across. */
 const COLUMNS_SM = [
-  { x: 18, size: 1.00, dur: 7.4, dir: "down" },
-  { x: 50, size: 0.92, dur: 8.6, dir: "up" },
-  { x: 82, size: 0.96, dur: 8.0, dir: "down" },
-  { x: 18, size: 0.94, dur: 8.9, dir: "up" },
-  { x: 50, size: 1.00, dur: 7.8, dir: "down" },
-  { x: 82, size: 0.90, dur: 9.3, dir: "up" },
+  { x: 18, dur: 9.4,  dir: "down" },
+  { x: 50, dur: 10.6, dir: "up" },
+  { x: 82, dur: 8.8,  dir: "down" },
 ] as const
+
+/** Diameter multiplier per brand. Free to vary inside a lane — the pair's
+ *  separation only dips from 303px to 294px across the whole size range, which
+ *  is still three and a half discs of clearance. */
+const SIZES_SM = [1.00, 0.92, 0.96, 0.94, 1.00, 0.90] as const
 
 /* Two copies per column, half a cycle apart, plus a per-column offset so the
    six columns are not marching in step. All arithmetic, no Math.random — this
-   renders on the server first and a random value would hydrate mismatched. */
+   renders on the server first and a random value would hydrate mismatched.
+
+   Below 1024px copy 1 is hidden and the half-cycle offset comes from the BRAND
+   index instead: brands 0-2 lead, brands 3-5 follow half a cycle behind in the
+   same lane. The (i % 3) term staggers the three lanes against each other and,
+   because it is identical for both brands in a lane, leaves their relative
+   offset untouched. */
 const ITEMS = BRANDS.flatMap((brand, i) => {
   const c = COLUMNS[i]
-  const sm = COLUMNS_SM[i]
+  const sm = COLUMNS_SM[i % 3]
   return [0, 1].map((copy) => ({
     key: `${brand.id}-${copy}`,
     brand,
+    copy,
     x: c.x,
     size: c.size,
     dur: c.dur,
@@ -200,11 +224,10 @@ const ITEMS = BRANDS.flatMap((brand, i) => {
     // compact layout — every item carries BOTH sets and CSS picks one. A JS
     // width check here would hydrate mismatched and flash on load.
     xSm: sm.x,
-    sizeSm: sm.size,
+    sizeSm: SIZES_SM[i],
     durSm: sm.dur,
     dirSm: sm.dir,
-    delaySm: -(copy * 0.5 * sm.dur + i * 0.9),
-    zone: Math.floor(i / 3),
+    delaySm: -(Math.floor(i / 3) * 0.5 * sm.dur + (i % 3) * 1.4),
   }))
 })
 
@@ -343,7 +366,7 @@ export function GroupCompanies() {
                 className="rf-item"
                 data-dir={it.dir}
                 data-dir-sm={it.dirSm}
-                data-zone={it.zone}
+                data-copy={it.copy}
                 data-active={active?.key === it.key ? "true" : "false"}
                 style={{
                   ["--x" as string]: `${it.x}%`,
@@ -475,7 +498,6 @@ export function GroupCompanies() {
         .rf-stage {
           --disc-base: 96px;
           --stage-h: 440px;
-          --zone-h: var(--stage-h);   /* one full-height zone on a wide screen */
           --rf-card-mode: beside;     /* read back by open() — see the comment there */
           height: var(--stage-h);
           max-width: 1000px;
@@ -496,7 +518,7 @@ export function GroupCompanies() {
 
         .rf-item {
           position: absolute;
-          top: var(--zone-y, 0px);
+          top: 0;
           left: var(--x);
           width: var(--disc);
           height: var(--disc);
@@ -510,39 +532,17 @@ export function GroupCompanies() {
         .rf-item[data-dir="down"] { animation-name: rf-down; }
         .rf-item[data-dir="up"]   { animation-name: rf-up; }
 
-        /* Travel is --zone-h, which equals the stage height when there is one
-           zone and half of it when there are two. The keyframes never change. */
+        /* One full-height fall, at every width. A disc enters a disc-and-30px
+           above the stage and leaves 30px below it, so both the entry and the
+           exit happen behind the mask. The compact layout changes --stage-h,
+           never these — the keyframes are the same ones at every width. */
         @keyframes rf-down {
           from { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); }
-          to   { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); }
+          to   { transform: translate3d(0, calc(var(--stage-h) + 30px), 0); }
         }
         @keyframes rf-up {
-          from { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); }
+          from { transform: translate3d(0, calc(var(--stage-h) + 30px), 0); }
           to   { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); }
-        }
-
-        /* ── Zoned variants ────────────────────────────────────────────────
-           With two zones a disc still overshoots its own zone by its diameter
-           plus 30px, which is half a zone — so the upper zone's discs were
-           visibly sliding over the lower zone's. A mask cannot fix that: it
-           fades a BAND of the stage, not a disc's own entry and exit, and
-           widening it enough to cover the overlap ate a quarter of the stage.
-
-           Fading inside the keyframes fixes it at the source. Each disc is
-           transparent whenever it is outside its own lane, whatever the zone
-           count, and it costs nothing extra — opacity is already a compositor
-           property and the animation was running anyway. */
-        @keyframes rf-down-z {
-          0%   { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); opacity: 0; }
-          14%  { opacity: 1; }
-          86%  { opacity: 1; }
-          100% { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); opacity: 0; }
-        }
-        @keyframes rf-up-z {
-          0%   { transform: translate3d(0, calc(var(--zone-h) + 30px), 0); opacity: 0; }
-          14%  { opacity: 1; }
-          86%  { opacity: 1; }
-          100% { transform: translate3d(0, calc(var(--disc) * -1 - 30px), 0); opacity: 0; }
         }
 
         /* Declared AFTER the animation properties above so they actually win —
@@ -556,12 +556,11 @@ export function GroupCompanies() {
            3MB of GPU texture at dpr 3. Hand them back when nothing is moving. */
         [data-anim="off"] .rf-item { will-change: auto; }
 
-        /* ── Compact: three columns, two zones ──────────────────────────────
-           The whole reflow is two custom properties. --zone-h halves the
-           distance a disc travels, and --zone-y offsets the second row of
-           lanes by exactly that much, so brands 3-5 fall through the lower
-           half while 0-2 fall through the upper half. No DOM change, no JS
-           branch, nothing to hydrate wrong.
+        /* ── Compact: three lanes, six discs ────────────────────────────────
+           Nothing here is a new mechanism. The travel, the keyframes and the
+           stage mask are the same ones the wide layout has used all along —
+           this block just hands them a smaller stage, a narrower set of lanes
+           and half as many objects.
 
            min(86px, 24vw) is what keeps it working at 320px: on a Fold cover
            screen the discs shrink to 77px rather than overflowing. */
@@ -569,29 +568,29 @@ export function GroupCompanies() {
           .rf-stage {
             --disc-base: min(86px, 24vw);
             --stage-h: 460px;
-            --zone-h: calc(var(--stage-h) / 2);
             --rf-card-mode: dock;
             max-width: none;
           }
+
+          /* Half the shower comes off the stage. Twelve objects in three lanes
+             is a traffic jam; six is weather. Hiding rather than not rendering
+             keeps one DOM tree across the breakpoint — no JS width check, so
+             nothing can hydrate wrong. */
+          .rf-item[data-copy="1"] { display: none; }
+
           .rf-item {
             left: var(--x-sm);
-            top: var(--zone-y);
             width: var(--disc-sm);
             height: var(--disc-sm);
             margin-left: calc(var(--disc-sm) / -2);
             animation-duration: var(--dur-sm);
             animation-delay: var(--delay-sm);
           }
-          .rf-item[data-zone="0"] { --zone-y: 0px; }
-          .rf-item[data-zone="1"] { --zone-y: var(--zone-h); }
-          /* direction is re-dealt per zone, so these must override the wide
-             rules — they come later in the sheet, which is how they win */
-          .rf-item[data-dir-sm="down"] { animation-name: rf-down-z; }
-          .rf-item[data-dir-sm="up"]   { animation-name: rf-up-z; }
-
-          /* The per-disc fade above replaces the stage mask entirely. Leaving
-             both on would double-dim the top and bottom sixth of the stage. */
-          .rf-rain { mask-image: none; }
+          /* Direction is dealt per lane rather than inherited per brand, so
+             these have to override the wide rules — they come later in the
+             sheet, which is how they win. */
+          .rf-item[data-dir-sm="down"] { animation-name: rf-down; }
+          .rf-item[data-dir-sm="up"]   { animation-name: rf-up; }
         }
 
         .rf-disc {
