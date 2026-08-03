@@ -70,6 +70,7 @@ type Layout = {
   /** centre of each connector nub, on the box edge its wire leaves from */
   ports: [Pt, Pt]
   halves: [Half, Half]
+  route?: Half
   socket: { x: number; y: number; r: number }
   /** Nubs lie flat when the wire leaves a box vertically. */
   portVertical?: boolean
@@ -128,19 +129,14 @@ const FULL: Layout = {
    ogee. Both boxes get 200 units, which was the whole point of going vertical,
    and the reading order matches the wide layout: agency first, then AIOS.
 
-   The curve is one cubic: down out of the agency box, sweeping right, then
-   easing back down into AIOS. Its control points sit directly below and above
-   the two ports, which is what makes the tangent vertical at both ends — the
-   wire leaves and arrives square to each box rather than clipping its corner.
-
-   The socket sits at t = 0.5. On a curve with this symmetry that is the exact
-   centre of the S, so the two halves come out the same length and one progress
-   value drives them to meet in the middle at the same instant, as every other
-   layout here does. */
-const S_P0: Pt = [108, 66]   // bottom edge of the agency box
-const S_C0: Pt = [108, 108]
-const S_C1: Pt = [252, 104]
-const S_P1: Pt = [252, 146]  // top edge of the AIOS box
+  /** Mobile uses a Z: top bar out of the agency box, diagonal through the middle,
+      then a bottom bar into AIOS. */
+  const Z_ROUTE = half([
+    [108, 66],
+    [300, 66],
+    [160, 146],
+    [252, 146],
+  ])
 
 const COMPACT: Layout = {
   vw: 360, vh: 212,
@@ -149,12 +145,10 @@ const COMPACT: Layout = {
     { x: 152, y: 146, w: 200, h: 54, label: "AIOS",             size: 17, dy: 6, tracking: 2 },
   ],
   ports:  [[108, 62], [252, 150]],
-  halves: [
-    curveHalf(S_P0, S_C0, S_C1, S_P1, 0, 0.5),   // out of the agency box, downward
-    curveHalf(S_P0, S_C0, S_C1, S_P1, 1, 0.5),   // out of AIOS, upward
-  ],
-  socket: { x: bezier(S_P0, S_C0, S_C1, S_P1, 0.5)[0], y: bezier(S_P0, S_C0, S_C1, S_P1, 0.5)[1], r: 14 },
-  portVertical: true,
+    halves: [Z_ROUTE, Z_ROUTE],
+    route: Z_ROUTE,
+    socket: { x: 204, y: 106, r: 14 },
+    portVertical: false,
   /* Off the socket and into the clear block left of the AIOS box, so the
      label never lands on the curve it is describing. */
   captionX: 74, captionY: 180, hintY: 180,
@@ -217,6 +211,7 @@ export function WireAnimation() {
 
   const L = compact ? COMPACT : FULL
   const connected = progress >= 0.97
+  const route = compact ? L.route : undefined
 
   const a = (o: number) => `rgba(147,51,234,${o})`
   const purple = "rgb(147,51,234)"
@@ -279,37 +274,73 @@ export function WireAnimation() {
             every dash by half the stroke width at both ends, so adding one
             here would visibly fatten the wide layout's guide — a pixel diff on
             a screen this change is not allowed to touch. */}
-        {L.halves.map((h, i) => (
-          <polyline
-            key={`g${i}`}
-            points={points(h)}
-            fill="none"
-            stroke={a(0.08)}
-            strokeWidth="2"
-            strokeDasharray="6 5"
-            strokeLinejoin="round"
-          />
-        ))}
+        {compact ? (
+          route && (
+            <polyline
+              points={points(route)}
+              fill="none"
+              stroke={a(0.08)}
+              strokeWidth="2"
+              strokeDasharray="6 5"
+              strokeLinejoin="round"
+            />
+          )
+        ) : (
+          L.halves.map((h, i) => (
+            <polyline
+              key={`g${i}`}
+              points={points(h)}
+              fill="none"
+              stroke={a(0.08)}
+              strokeWidth="2"
+              strokeDasharray="6 5"
+              strokeLinejoin="round"
+            />
+          ))
+        )}
 
         {/* ANIMATED WIRES — both halves are the same length, so one progress
             value drives them symmetrically and they arrive together. */}
-        {L.halves.map((h, i) => (
-          <polyline
-            key={`w${i}`}
-            points={points(h)}
-            fill="none"
-            stroke={a(0.8)}
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={h.total}
-            strokeDashoffset={h.total * (1 - progress)}
-          />
-        ))}
+        {compact ? (
+          route && (
+            <polyline
+              points={points(route)}
+              fill="none"
+              stroke={a(0.8)}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={route.total}
+              strokeDashoffset={route.total * (1 - progress)}
+            />
+          )
+        ) : (
+          L.halves.map((h, i) => (
+            <polyline
+              key={`w${i}`}
+              points={points(h)}
+              fill="none"
+              stroke={a(0.8)}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={h.total}
+              strokeDashoffset={h.total * (1 - progress)}
+            />
+          ))
+        )}
 
         {/* MOVING TIPS — linear interpolation along a straight segment, at
             either layout. Nothing is measured. */}
-        {progress > 0.03 && !connected && L.halves.map((h, i) => {
+        {progress > 0.03 && !connected && (compact && route ? (() => {
+          const [tx, ty] = tipAt(route, progress)
+          return (
+            <g>
+              <circle cx={tx} cy={ty} r="7" fill={a(0.2)} />
+              <circle cx={tx} cy={ty} r="4" fill={purple} />
+            </g>
+          )
+        })() : L.halves.map((h, i) => {
           const [tx, ty] = tipAt(h, progress)
           return (
             <g key={`t${i}`}>
@@ -317,7 +348,7 @@ export function WireAnimation() {
               <circle cx={tx} cy={ty} r="4" fill={purple} />
             </g>
           )
-        })}
+        }))}
 
         {/* SOCKET */}
         <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r}

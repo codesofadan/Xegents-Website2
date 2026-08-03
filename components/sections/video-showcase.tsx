@@ -113,7 +113,7 @@ const FLAT_Q = "(max-width: 63.99rem)"
    unchanged, it is untouched.
 ──────────────────────────────────────────────────────────────────────────── */
 type Dims = {
-  /** "arc" is the wide 3D coverflow; "flat" is the 2-up rail below 1024px. */
+  /** "arc" is the wide 3D coverflow; "flat" is the 1-up rail below 1024px. */
   mode: "arc" | "flat"
   theta: number   // degrees between adjacent cards
   radius: number  // circle radius — depth is locked to this
@@ -151,9 +151,6 @@ function computeDims(w: number, reduced: boolean, flat: boolean): Dims {
 const mod      = (n: number, m: number) => ((n % m) + m) % m
 const wrapRel  = (raw: number, N: number) => raw - N * Math.round(raw / N)
 
-/** The two slots on screen in flat mode. */
-const inPair = (r: number) => r === 0 || r === 1
-
 /**
  * @param oldRel where this slot sat on the previous render
  * @param newRel where it sits now
@@ -167,9 +164,9 @@ const inPair = (r: number) => r === 0 || r === 1
 function cardLayout(oldRel: number, newRel: number, dims: Dims) {
   if (dims.mode === "flat") {
     // Clamped, so nothing ever animates further than one screen.
-    const park = newRel <= -2 ? -2.5 : newRel >= 3 ? 2.5 : newRel - 0.5
-    const onStage = inPair(newRel)
-    const moving  = onStage || inPair(oldRel)
+    const park = newRel === 0 ? 0 : newRel < 0 ? -1.5 : 1.5
+    const onStage = newRel === 0
+    const moving  = onStage || oldRel === 0
     return {
       /* No perspective, no rotation, no scale, no supersample — one axis.
          The park factor is interpolated into the string rather than read from
@@ -366,7 +363,27 @@ export function VideoShowcase() {
     setPlaying(null)
   }, [])
 
-  const step = useCallback((delta: number) => { stopPlayback(); setActive(a => a + delta) }, [stopPlayback])
+  const step = useCallback((delta: number) => {
+    stopPlayback()
+    setActive(a => {
+      if (!flat) return a + delta
+
+      const curVideo = mod(a, VIDEOS.length)
+      const targetVideo = mod(curVideo + delta, VIDEOS.length)
+      let best = 0
+      let bestDist = Infinity
+
+      for (let s = targetVideo; s < N; s += VIDEOS.length) {
+        const d = wrapRel(s - curVideo, N)
+        if (Math.abs(d) < bestDist) {
+          bestDist = Math.abs(d)
+          best = d
+        }
+      }
+
+      return a + best
+    })
+  }, [N, flat, stopPlayback])
 
   /** Each video now lives in two slots — go to whichever is fewer steps away,
    *  so a dot never sends the arc the long way round. */
@@ -627,7 +644,7 @@ export function VideoShowcase() {
                      downloads on play. */
                   preload={
                     !armed ? "none"
-                      : flat ? (inPair(newRel) ? "metadata" : "none")
+                      : flat ? (newRel === 0 ? "metadata" : "none")
                       : Math.abs(newRel) <= 3 ? "metadata" : "none"
                   }
                   controls={isPlaying}
@@ -779,10 +796,7 @@ export function VideoShowcase() {
             --vs-gap: 12px;
             --vs-pad: 2rem;
             --vs-cap: 78svh;
-            --vs-cardw: min(
-              calc((100vw - var(--vs-pad) - var(--vs-gap)) / 2),
-              calc(var(--vs-cap) * 9 / 16)
-            );
+            --vs-cardw: min(calc(100vw - var(--vs-pad)), calc(var(--vs-cap) * 9 / 16));
             height: calc(var(--vs-cardw) * 16 / 9) !important;
             /* No depth, so no 3D rendering context over twelve cards. */
             perspective: none !important;
