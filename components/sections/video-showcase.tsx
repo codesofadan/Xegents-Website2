@@ -229,7 +229,11 @@ function cardLayout(oldRel: number, newRel: number, dims: Dims) {
     dim:           dims.reduced ? 0 : dim,
     // Nearest wins, which is also what physically overlaps.
     zIndex:        1000 + Math.round(translateZ),
-    pointerEvents: (opacity < 0.12 ? "none" : "auto") as "none" | "auto",
+    /* ONLY THE CENTRED CARD TAKES THE POINTER. The side cards used to be
+       clickable so you could click one to bring it forward, which is also what
+       let the cursor catch on artwork while the row was moving. Navigation is
+       the arrows now, so a side card has nothing to respond to and is inert. */
+    pointerEvents: (rel === 0 ? "auto" : "none") as "none" | "auto",
     // Five of the twelve slots are round the back at any moment. At opacity 0
     // they still cost a composited layer each; hiding them drops that. Matters
     // on integrated graphics, where twelve supersampled video layers is a lot.
@@ -284,19 +288,13 @@ export function VideoShowcase() {
   const prevActiveRef = useRef(active)
   useEffect(() => { prevActiveRef.current = active })
 
-  const activeRef  = useRef(active);  activeRef.current  = active
-  const dimsRef    = useRef(dims);    dimsRef.current    = dims
+  /* activeRef, dimsRef and scrimRefs existed only for the per-frame painter,
+     which read them outside React's render. Nothing reads outside a render
+     any more. */
   const playingRef = useRef(playing); playingRef.current = playing
 
-  const startX  = useRef(0)
-  const dragDX  = useRef(0)
-  const dragging = useRef(false)
-  const didDrag  = useRef(false)
-  const rafId   = useRef(0)
   const cardRefs  = useRef<(HTMLElement | null)[]>([])
-  const scrimRefs = useRef<(HTMLElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
-  const [grabbing, setGrabbing] = useState(false)
 
   const activeIndex = mod(active, N)
 
@@ -337,26 +335,10 @@ export function VideoShowcase() {
     }
   }, [activeIndex, playing])
 
-  /* Imperatively write transforms — no React re-render per drag frame.
-     Called ONLY from the drag handlers, so in flat mode (which attaches none)
-     this is dead code and the per-frame cost is exactly zero writes. */
-  const paint = useCallback((off: number) => {
-    for (let i = 0; i < N; i++) {
-      const el = cardRefs.current[i]
-      if (!el) continue
-      const rel = wrapRel(i - off, N)
-      const s = cardLayout(rel, rel, dimsRef.current)
-      el.style.transform     = s.transform
-      el.style.opacity       = String(s.opacity)
-      el.style.zIndex        = String(s.zIndex)
-      el.style.pointerEvents = s.pointerEvents
-      el.style.visibility    = s.visibility
-      // The scrim has to track the drag too, or the lighting snaps at the end
-      // of the gesture instead of following the cards.
-      const sc = scrimRefs.current[i]
-      if (sc) sc.style.opacity = String(s.dim)
-    }
-  }, [N])
+  /* The per-frame painter that used to write transform, opacity, zIndex,
+     pointerEvents and visibility across all twelve cards is gone with the drag
+     that called it. Every position now comes from a React render, which
+     happens once per arrow press rather than once per frame of a gesture. */
 
   const stopPlayback = useCallback(() => {
     if (playingRef.current !== null) videoRefs.current[playingRef.current]?.pause()
@@ -413,51 +395,23 @@ export function VideoShowcase() {
 
   const onVideoEnded = () => setPlaying(null)
 
-  // ── Pointer drag ──────────────────────────────────────────────────────────
-  // IMPORTANT: do NOT setPointerCapture on pointerdown. Capturing on the stage
-  // retargets the subsequent `click` event to the stage element, so the card's
-  // onClick (the play button) never fires. We only capture once an actual drag
-  // has started (>8px movement) — at that point the click is suppressed anyway.
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (playingRef.current !== null) return
-    dragging.current = true; didDrag.current = false; dragDX.current = 0
-    setGrabbing(true)
-    startX.current = e.clientX
-    for (const el of cardRefs.current) if (el) { el.style.transition = "none"; el.style.willChange = "transform" }
-    for (const el of scrimRefs.current) if (el) el.style.transition = "none"
-  }
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return
-    const dx = e.clientX - startX.current
-    if (!didDrag.current && Math.abs(dx) > 8) {
-      didDrag.current = true
-      ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
-    }
-    dragDX.current = dx
-    if (!rafId.current) {
-      rafId.current = requestAnimationFrame(() => {
-        rafId.current = 0
-        paint(activeRef.current - dragDX.current / dimsRef.current.step)
-      })
-    }
-  }
-  const endDrag = (e: React.PointerEvent) => {
-    if (!dragging.current) return
-    dragging.current = false
-    setGrabbing(false)
-    if (rafId.current) { cancelAnimationFrame(rafId.current); rafId.current = 0 }
-    const steps = Math.round(dragDX.current / dimsRef.current.step)
-    dragDX.current = 0
-    for (const el of cardRefs.current) if (el) { el.style.transition = TRANSITION; el.style.willChange = "auto" }
-    for (const el of scrimRefs.current) if (el) el.style.transition = "opacity 0.55s ease"
-    if (steps !== 0) setActive(a => a - steps)
-    else paint(activeRef.current)
-  }
+  /* ── NO DRAGGING, AT ANY WIDTH ────────────────────────────────────────────
+     The carousel moves by the arrows, the dots and the arrow keys. Nothing
+     else. The whole pointer-drag path is gone: no pointerdown, no
+     setPointerCapture, no rAF loop, no grab cursor.
 
+     It was not just unnecessary, it was the expensive part. Holding a card
+     wrote transform, opacity, zIndex, pointerEvents and visibility across all
+     twelve cards on every frame, and pointerdown promoted all twelve to their
+     own GPU layer via will-change — twelve supersampled 405px layers, plus
+     however many <video> textures were live. That is what the cursor was
+     "catching" on.
+
+     Only the centred card takes the pointer at all now, and only so it can be
+     played. Every other card is inert, so the cursor cannot grab, drag or
+     snag on artwork that is not the one you are looking at. */
   const onCardClick = (i: number) => {
-    if (didDrag.current) return
     if (i === activeIndex) toggleVideo(i)
-    else goToIndex(i)
   }
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -541,29 +495,24 @@ export function VideoShowcase() {
 
       {/* Stage — full width so side cards have room */}
       <div
-        className="vs-stage relative w-full select-none touch-pan-y"
+        className="vs-stage relative w-full select-none"
         /* The label says "drag to scroll" — the cursor should say it too. */
         style={{
           perspective: "2200px",
           height: stageH,
-          cursor: flat ? "auto" : grabbing ? "grabbing" : "grab",
+          /* No grab cursor, because there is nothing to grab. A grab cursor
+             over artwork that does not drag is a promise the page cannot
+             keep. */
+          cursor: "auto",
         }}
-        /* No drag below lg. Not attached rather than guarded, so the
-           willChange promotion of twelve supersampled layers on pointerdown
-           cannot happen at all. */
-        onPointerDown={flat ? undefined : onPointerDown}
-        onPointerMove={flat ? undefined : onPointerMove}
-        onPointerUp={flat ? undefined : endDrag}
-        onPointerCancel={flat ? undefined : endDrag}
-        onPointerLeave={flat ? undefined : endDrag}
         onKeyDown={onKeyDown}
         tabIndex={0}
         role="group"
         aria-roledescription="carousel"
-        /* True in both modes — an attribute cannot be swapped by CSS, and
-           branching it on client state would be a hydration mismatch. */
+        /* An attribute cannot be swapped by CSS, and branching it on client
+           state would be a hydration mismatch, so it has to be true at every
+           width — which it is. */
         aria-label="Video showcase — use the arrows or the arrow keys"
-        data-lenis-prevent={flat ? undefined : true}
       >
         <div
           className="vs-inner absolute inset-0 flex items-center justify-center"
@@ -653,9 +602,10 @@ export function VideoShowcase() {
                   draggable={false}
                 />
 
-                {/* Depth scrim — sits above the video, below the UI. */}
+                {/* Depth scrim — sits above the video, below the UI. Its
+                    opacity is a plain inline style now; the ref existed only
+                    so the drag painter could write to it every frame. */}
                 <div
-                  ref={el => { scrimRefs.current[i] = el }}
                   aria-hidden="true"
                   className="vs-scrim pointer-events-none absolute inset-0 bg-black"
                   style={{ opacity: base.dim, transition: "opacity 0.55s ease" }}
