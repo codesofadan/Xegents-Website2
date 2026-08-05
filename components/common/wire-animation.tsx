@@ -18,22 +18,23 @@ import { useEffect, useRef, useState } from "react"
    leave the wire anywhere to go, and the labels shrank with them — the wire
    was fine and the thing it connected had become unreadable.
 
-   SO: WIDE IS A LINE, NARROW IS AN S. Going vertical is what buys the boxes
-   their width back — both get 200 units instead of 112 and 76 — and the S is
-   what spends the height that gained. MARKETING AGENCY sits top-left, AIOS
-   bottom-right, and one ogee runs between them, so the reading order is the
-   same left-to-right one the wide layout has.
+   SO: WIDE IS A LINE, NARROW IS A DIAGONAL. Going vertical is what buys the
+   boxes their width back — both get 264 units instead of 112 and 76. The two
+   labels centre on screen, MARKETING AGENCY on top and AIOS below, and one
+   straight diagonal runs from the bottom-right of the top box to the top-left
+   of AIOS, so the reading order is the same left-to-right one the wide layout
+   has: agency first, then AIOS.
 
-   (A Z was tried first, and it was right about the geometry and wrong about
-   the feel: three straight segments meeting at hard corners read as a wiring
-   diagram rather than a connection.)
+   (An S-curve and a Z were both tried first. The Z read as a wiring diagram
+   rather than a connection — three straight segments meeting at hard corners,
+   with the socket and tip landing off the visible bends. A single clean
+   diagonal that plugs into both boxes is what reads as branded.)
 
-   THE CURVE IS FLATTENED, NOT MEASURED. It is sampled into a polyline at
-   module load, which lets it reuse every straight-line mechanism already
-   here — <polyline> draws it, strokeDasharray measures it, and the moving tip
-   stays linear interpolation between two sampled points. So there is still no
-   getTotalLength() or getPointAtLength() anywhere in this file, and the curve
-   costs no more per frame than the straight run did.
+   NOTHING HERE IS MEASURED. Every wire is a polyline, which lets it reuse one
+   set of mechanisms — <polyline> draws it, strokeDasharray measures it, and
+   the moving tip stays linear interpolation between two points. So there is no
+   getTotalLength() or getPointAtLength() anywhere in this file, and the wire
+   costs nothing per frame beyond a straight run.
 
    Both layouts are DATA, not branches. A layout describes its boxes, its two
    wire halves and its socket; the render below is one code path that draws
@@ -124,34 +125,30 @@ const FULL: Layout = {
   captionX: 500, captionY: 128, hintY: 152,
 }
 
-/* ── Narrow: the S ─────────────────────────────────────────────────────────
-   MARKETING AGENCY sits top-LEFT and AIOS bottom-RIGHT, joined by a single
-   ogee. Both boxes get 200 units, which was the whole point of going vertical,
-   and the reading order matches the wide layout: agency first, then AIOS.
-
-  /** Mobile uses a Z: top bar out of the agency box, diagonal through the middle,
-      then a bottom bar into AIOS. */
-  const Z_ROUTE = half([
-    [108, 66],
-    [300, 66],
-    [160, 146],
-    [252, 146],
-  ])
+/* ── Narrow: the diagonal ─────────────────────────────────────────────────
+   On mobile the connection becomes a minimal diagram: both labels are
+   centered on screen — MARKETING AGENCY top, AIOS bottom — and one straight
+   diagonal runs from the bottom-right of the top box down to the top-left of
+   AIOS, so it plugs into both boxes and reads right-to-bottom-left. A small
+   nub marks where it leaves the agency; a socket on AIOS lights up when it
+   lands. No S, no Z, no floating dots. */
+const COMPACT_LINE = half([
+  [298, 82],
+  [62, 158],
+])
 
 const COMPACT: Layout = {
-  vw: 360, vh: 212,
+  vw: 360, vh: 240,
   boxes: [
-    { x: 8,   y: 12,  w: 200, h: 54, label: "MARKETING AGENCY", size: 15, dy: 5, fit: true },
-    { x: 152, y: 146, w: 200, h: 54, label: "AIOS",             size: 17, dy: 6, tracking: 2 },
+    { x: 48, y: 22,  w: 264, h: 60, label: "MARKETING AGENCY", size: 16, dy: 5, fit: true },
+    { x: 48, y: 158, w: 264, h: 60, label: "AIOS",             size: 18, dy: 6, tracking: 2 },
   ],
-  ports:  [[108, 62], [252, 150]],
-    halves: [Z_ROUTE, Z_ROUTE],
-    route: Z_ROUTE,
-    socket: { x: 204, y: 106, r: 14 },
-    portVertical: false,
-  /* Off the socket and into the clear block left of the AIOS box, so the
-     label never lands on the curve it is describing. */
-  captionX: 74, captionY: 180, hintY: 180,
+  ports:  [[298, 82], [62, 158]],
+  halves: [COMPACT_LINE, COMPACT_LINE],
+  route: COMPACT_LINE,
+  socket: { x: 180, y: 120, r: 14 },
+  portVertical: false,
+  captionX: 180, captionY: 232, hintY: 232,
 }
 
 /** Where the drawn tip has reached, walking the polyline segment by segment. */
@@ -233,12 +230,68 @@ export function WireAnimation() {
         style={{ overflow: "visible" }}
         aria-hidden="true"
       >
+        {compact && route && (
+          <>
+            {/* faint dashed guide showing the whole diagonal */}
+            <polyline
+              points={points(route)}
+              fill="none"
+              stroke={a(0.08)}
+              strokeWidth="2"
+              strokeDasharray="6 5"
+              strokeLinejoin="round"
+            />
+            {/* the wire, drawing itself from the agency down to AIOS on scroll */}
+            <polyline
+              points={points(route)}
+              fill="none"
+              stroke={a(0.8)}
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={route.total}
+              strokeDashoffset={route.total * (1 - progress)}
+            />
+            {/* source nub on the agency box — lights once the wire starts */}
+            <circle
+              cx={route.pts[0][0]} cy={route.pts[0][1]} r="5"
+              fill={progress > 0.02 ? purple : a(0.3)}
+              stroke={a(0.6)} strokeWidth="1"
+              style={{ transition: "fill 0.4s" }}
+            />
+            {/* socket on the AIOS box — lights up when the wire lands */}
+            <circle
+              cx={route.pts[route.pts.length - 1][0]} cy={route.pts[route.pts.length - 1][1]}
+              r="7"
+              fill={connected ? a(0.16) : a(0.05)}
+              stroke={connected ? a(0.7) : a(0.28)} strokeWidth="1.5"
+              style={{ transition: "all 0.4s ease" }}
+            />
+            <circle
+              cx={route.pts[route.pts.length - 1][0]} cy={route.pts[route.pts.length - 1][1]}
+              r={connected ? 3.6 : 2}
+              fill={connected ? purple : a(0.25)}
+              style={{ transition: "all 0.45s ease" }}
+            />
+            {/* moving tip, travelling along the line as it draws */}
+            {progress > 0.03 && !connected && (() => {
+              const [tx, ty] = tipAt(route, progress)
+              return (
+                <g>
+                  <circle cx={tx} cy={ty} r="6" fill={a(0.2)} />
+                  <circle cx={tx} cy={ty} r="3.5" fill={purple} />
+                </g>
+              )
+            })()}
+          </>
+        )}
+
         {/* BOXES */}
         {L.boxes.map((b, i) => (
           <g key={`b${i}`}>
             <rect
               x={b.x} y={b.y} width={b.w} height={b.h} rx={compact ? 10 : 12}
-              fill={a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
+              fill={compact ? "rgba(12, 3, 24, 0.98)" : a(0.06)} stroke={a(connected ? 0.55 : 0.28)} strokeWidth="1.5"
               style={{ transition: "stroke 0.4s" }}
             />
             <text
@@ -255,37 +308,21 @@ export function WireAnimation() {
             >
               {b.label}
             </text>
-            {/* Connector nub on the edge this box's wire leaves from. It lies
-                flat when the wire leaves vertically, so it reads as a socket
-                on that edge rather than a tab poking through it. */}
-            <rect
-              x={L.ports[i][0] - (L.portVertical ? 9 : 5)}
-              y={L.ports[i][1] - (L.portVertical ? 5 : 9)}
-              width={L.portVertical ? 18 : 10}
-              height={L.portVertical ? 10 : 18}
-              rx="2.5"
-              fill={a(0.3)} stroke={a(0.55)} strokeWidth="1"
-            />
+            {!compact && (
+              <rect
+                x={L.ports[i][0] - (L.portVertical ? 9 : 5)}
+                y={L.ports[i][1] - (L.portVertical ? 5 : 9)}
+                width={L.portVertical ? 18 : 10}
+                height={L.portVertical ? 10 : 18}
+                rx="2.5"
+                fill={a(0.3)} stroke={a(0.55)} strokeWidth="1"
+              />
+            )}
           </g>
         ))}
 
-        {/* GUIDE TRACKS — the route the wire will take.
-            Butt caps, deliberately. A round cap on a dashed stroke extends
-            every dash by half the stroke width at both ends, so adding one
-            here would visibly fatten the wide layout's guide — a pixel diff on
-            a screen this change is not allowed to touch. */}
-        {compact ? (
-          route && (
-            <polyline
-              points={points(route)}
-              fill="none"
-              stroke={a(0.08)}
-              strokeWidth="2"
-              strokeDasharray="6 5"
-              strokeLinejoin="round"
-            />
-          )
-        ) : (
+        {/* GUIDE TRACKS — the route the wire will take. */}
+        {!compact && (
           L.halves.map((h, i) => (
             <polyline
               key={`g${i}`}
@@ -301,20 +338,7 @@ export function WireAnimation() {
 
         {/* ANIMATED WIRES — both halves are the same length, so one progress
             value drives them symmetrically and they arrive together. */}
-        {compact ? (
-          route && (
-            <polyline
-              points={points(route)}
-              fill="none"
-              stroke={a(0.8)}
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={route.total}
-              strokeDashoffset={route.total * (1 - progress)}
-            />
-          )
-        ) : (
+        {!compact && (
           L.halves.map((h, i) => (
             <polyline
               key={`w${i}`}
@@ -332,15 +356,7 @@ export function WireAnimation() {
 
         {/* MOVING TIPS — linear interpolation along a straight segment, at
             either layout. Nothing is measured. */}
-        {progress > 0.03 && !connected && (compact && route ? (() => {
-          const [tx, ty] = tipAt(route, progress)
-          return (
-            <g>
-              <circle cx={tx} cy={ty} r="7" fill={a(0.2)} />
-              <circle cx={tx} cy={ty} r="4" fill={purple} />
-            </g>
-          )
-        })() : L.halves.map((h, i) => {
+        {progress > 0.03 && !connected && !compact && L.halves.map((h, i) => {
           const [tx, ty] = tipAt(h, progress)
           return (
             <g key={`t${i}`}>
@@ -348,19 +364,23 @@ export function WireAnimation() {
               <circle cx={tx} cy={ty} r="4" fill={purple} />
             </g>
           )
-        }))}
+        })}
 
         {/* SOCKET */}
-        <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r}
-          fill={connected ? a(0.14) : a(0.04)}
-          stroke={connected ? a(0.7) : a(0.18)}
-          strokeWidth="1.5" style={{ transition: "all 0.4s ease" }} />
-        <circle cx={L.socket.x} cy={L.socket.y}
-          r={connected ? L.socket.r * 0.53 : L.socket.r * 0.3}
-          fill={connected ? purple : a(0.2)}
-          style={{ transition: "all 0.45s ease" }} />
+        {!compact && (
+          <>
+          <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r}
+            fill={connected ? a(0.14) : a(0.04)}
+            stroke={connected ? a(0.7) : a(0.18)}
+            strokeWidth="1.5" style={{ transition: "all 0.4s ease" }} />
+          <circle cx={L.socket.x} cy={L.socket.y}
+            r={connected ? L.socket.r * 0.53 : L.socket.r * 0.3}
+            fill={connected ? purple : a(0.2)}
+            style={{ transition: "all 0.45s ease" }} />
+          </>
+        )}
 
-        {connected && (
+        {connected && !compact && (
           <>
             <circle cx={L.socket.x} cy={L.socket.y} r={L.socket.r} fill="none" stroke={a(0.45)} strokeWidth="1.5">
               <animate attributeName="r" values={`${L.socket.r};${L.socket.r * 2.6};${L.socket.r}`} dur="2.4s" repeatCount="indefinite" />
@@ -373,13 +393,13 @@ export function WireAnimation() {
           </>
         )}
 
-        {connected && (
+        {connected && !compact && (
           <text x={L.captionX} y={L.captionY} textAnchor="middle" fontSize={compact ? 10 : 11}
             fontWeight="600" fill={a(0.85)} fontFamily="inherit" letterSpacing="0.5">
             Connected
           </text>
         )}
-        {progress < 0.04 && (
+        {progress < 0.04 && !compact && (
           <text x={L.captionX} y={L.hintY} textAnchor="middle" fontSize={compact ? 9.5 : 10.5}
             fill={muted} fontFamily="inherit">
             scroll to connect
