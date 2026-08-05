@@ -1,5 +1,20 @@
 "use client"
 
+/* ────────────────────────────────────────────────────────────────────────────
+   ⚠️  CURRENTLY HIDDEN — "What founders say after we ship."
+
+   This section is not on the site right now. It is commented out at its call
+   site in app/(marketing)/page.tsx, NOT here: the import and the <Testimonials />
+   element are both commented there.
+
+   Nothing in this file has been removed or changed to hide it. All six quotes,
+   the desktop marquee, the stacked mobile layout and the pause control are
+   intact and working — the component simply is not being rendered.
+
+   TO BRING IT BACK: uncomment those two lines in page.tsx. That is the entire
+   job; nothing in this file needs touching.
+──────────────────────────────────────────────────────────────────────────── */
+
 import { useEffect, useRef, useState } from "react"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 
