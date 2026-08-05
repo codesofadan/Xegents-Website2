@@ -113,7 +113,7 @@ const BRANDS: Brand[] = [
     logo: "/logos/mssalepoint.png",
     w: 80, h: 62,
     sector: "POS & Accounting",
-    line: "Point of sale and full accounting in one system — multi-branch, cloud-hosted, offline-tolerant.",
+    line: "Point of sale and full accounting in one system. Multi-branch, cloud-hosted, offline-tolerant.",
     url: "https://mssalepoint.com/",
   },
   {
@@ -122,7 +122,7 @@ const BRANDS: Brand[] = [
     logo: "/logos/barioo.png",
     w: 94, h: 94,
     sector: "ERP-Integrated POS",
-    line: "Point of sale built on top of an ERP — inventory, access and statistics in one place.",
+    line: "Point of sale built on top of an ERP, with inventory, access and statistics in one place.",
     url: "https://barioo.com/",
   },
   {
@@ -348,8 +348,8 @@ export function GroupCompanies() {
             They have trusted us. <span className="gradient-text">Would you?</span>
           </h2>
           <p className="gc-header mt-4 text-sm sm:text-base text-foreground/55 leading-relaxed">
-            Six technology businesses — POS and ERP, security, networking, hosting and
-            cross-border commerce — running across nine countries.
+            Six technology businesses running across nine countries: POS and ERP, security,
+            networking, hosting and cross-border commerce.
           </p>
         </div>
 

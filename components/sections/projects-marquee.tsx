@@ -28,25 +28,25 @@ const DETAILS: Record<string, Detail> = {
     problem:
       "Agencies were burning two to three weeks producing audits that prospects had lost interest in by the time they landed. Inconsistent depth, missed checks, and no way to run them at volume.",
     built:
-      "One command crawls the site, pulls Core Web Vitals, Google Business Profile data, SERP citations and domain authority, then dispatches four parallel agent teams across 660 checks — returning a consulting-grade PDF and a prioritised remediation playbook in under ten minutes.",
+      "One command crawls the site, pulls Core Web Vitals, Google Business Profile data, SERP citations and domain authority, then dispatches four parallel agent teams across 660 checks. It returns a consulting-grade PDF and a prioritised remediation playbook in under ten minutes.",
   },
   "leadgen-system": {
     problem:
       "Manual prospecting, one-off outreach emails written from scratch, and replies falling through the cracks. No system, no consistency, nothing that scaled past one person.",
     built:
-      "A five-module pipeline: lead discovery, intel gathering with a free-value PDF generated per prospect, personalised sequence writing, automated sending, and reply detection — all triggered by slash command, with no always-on cloud service to pay for.",
+      "A five-module pipeline: lead discovery, intel gathering with a free-value PDF generated per prospect, personalised sequence writing, automated sending, and reply detection. It all runs from a slash command, with no always-on cloud service to pay for.",
   },
   "blog-os": {
     problem:
-      "A single 2026-grade SEO article meant hours of SERP research, fact-checking, schema markup, internal linking and manual WordPress upload — multiplied across every client, every week.",
+      "A single 2026-grade SEO article meant hours of SERP research, fact-checking, schema markup, internal linking and manual WordPress upload, multiplied across every client, every week.",
     built:
       "A ten-agent editorial pipeline behind one command: SERP research, AIO citation mapping, passage-based drafting, critical editing, fact-checking, image generation, schema bundling, internal-link selection by reranking, and a direct WordPress draft. One run, zero manual steps.",
   },
   "copywriting-os": {
     problem:
-      "Brands needed constant copy — ads, emails, landing pages, VSLs — but every freelancer and tool produced generic output that missed the voice and came back needing heavy rewrites.",
+      "Brands needed constant copy for ads, emails, landing pages and VSLs, but every freelancer and tool produced generic output that missed the voice and came back needing heavy rewrites.",
     built:
-      "A brand-voice system that ingests the founder's existing copy, call transcripts and messaging docs to build a proprietary voice profile, then generates on-brand ads, sequences and pages at scale — with a scoring layer that rejects anything under a 90% voice match.",
+      "A brand-voice system that ingests the founder's existing copy, call transcripts and messaging docs to build a proprietary voice profile, then generates on-brand ads, sequences and pages at scale. A scoring layer rejects anything under a 90% voice match.",
   },
 }
 
@@ -122,7 +122,7 @@ export function ProjectsMarquee() {
             </h2>
           </div>
           <p className="projm-header-el text-sm text-foreground/45 max-w-xs leading-relaxed">
-            Real internal + client builds already in production — not concepts.
+            Real internal and client builds already in production, not concepts.
           </p>
         </div>
 

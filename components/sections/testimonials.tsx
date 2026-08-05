@@ -22,7 +22,7 @@ import { gsap, ScrollTrigger } from "@/lib/gsap"
 const TESTIMONIALS = [
   {
     quote:
-      "I used to lose entire weekends writing blogs for clients. Now one command runs the whole pipeline — research, drafting, fact-checking, even the WordPress upload. Ten agents doing what my team of three couldn't keep up with.",
+      "I used to lose entire weekends writing blogs for clients. Now one command runs the whole pipeline: research, drafting, fact-checking, even the WordPress upload. Ten agents doing what my team of three couldn't keep up with.",
     name: "Asim",
     role: "Content Agency Owner",
     system: "BlogOS",
@@ -38,7 +38,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "From finding the lead to booking the call, the pipeline runs itself — personalised emails, a free-value PDF for every prospect, reply detection. I just show up to the meetings.",
+      "From finding the lead to booking the call, the pipeline runs itself: personalised emails, a free-value PDF for every prospect, and reply detection. I just show up to the meetings.",
     name: "Hasan",
     role: "B2B Consultant",
     system: "LeadGen OS",
@@ -46,7 +46,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "Quotations, itineraries, follow-ups — the automation answers enquiries while we sleep. We reply in minutes now instead of the next morning, and our bookings show it.",
+      "Quotations, itineraries, follow-ups: the automation answers enquiries while we sleep. We reply in minutes now instead of the next morning, and our bookings show it.",
     name: "Hamza",
     role: "Travel Agency Owner",
     system: "Travel Automation",
@@ -54,7 +54,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "SEO AIOS runs our entire SEO operation — audits, content, rank tracking. What needed five different tools and two juniors is now one system that never misses a check.",
+      "SEO AIOS runs our entire SEO operation: audits, content and rank tracking. What needed five different tools and two juniors is now one system that never misses a check.",
     name: "Haseeb",
     role: "SEO Lead",
     system: "SEO AIOS",
@@ -62,7 +62,7 @@ const TESTIMONIALS = [
   },
   {
     quote:
-      "We plugged SEO AIOS into three client accounts and rankings started moving within weeks. It catches the technical issues humans skim past — every single time.",
+      "We plugged SEO AIOS into three client accounts and rankings started moving within weeks. It catches the technical issues humans skim past, every single time.",
     name: "Danyal",
     role: "Agency Partner",
     system: "SEO AIOS",

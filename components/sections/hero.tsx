@@ -128,7 +128,7 @@ export function Hero() {
 
         {/* Sub */}
         <p className="hero-el text-base sm:text-lg text-foreground/50 leading-relaxed max-w-xl mx-auto mb-10">
-          Your team's already doing it. AI does it faster and cheaper — without burning anyone out.
+          Your team's already doing it. AI does it faster and cheaper, without burning anyone out.
           We identify where AI creates immediate ROI, then build those systems.
         </p>
 

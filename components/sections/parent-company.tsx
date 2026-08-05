@@ -164,7 +164,7 @@ export function ParentCompany() {
 
                 <div className="space-y-4">
                   <p className="text-sm sm:text-base text-foreground/60 leading-relaxed">
-                    Xegents is owned by <BarionLink>Barion Systems</BarionLink> — an independent
+                    Xegents is owned by <BarionLink>Barion Systems</BarionLink>, an independent
                     technology group founded in{" "}
                     <strong className="font-semibold text-foreground/90">2013</strong> and
                     headquartered in Kuala Lumpur. Seven companies now sit under it, spanning POS and
@@ -173,11 +173,11 @@ export function ParentCompany() {
                   </p>
                   <p className="text-sm sm:text-base text-foreground/60 leading-relaxed">
                     It operates in{" "}
-                    <strong className="font-semibold text-foreground/90">9+ countries</strong> —
-                    Malaysia, Pakistan, the USA, the UK, the UAE, and Australia — and its software
-                    already runs inside some of Kuala Lumpur&apos;s largest retail and commercial
-                    developments. That engineering bench is what stands behind every AI system we
-                    ship.
+                    <strong className="font-semibold text-foreground/90">9+ countries</strong>,
+                    including Malaysia, Pakistan, the USA, the UK, the UAE and Australia. Its
+                    software already runs inside some of Kuala Lumpur&apos;s largest retail and
+                    commercial developments. That engineering bench is what stands behind every AI
+                    system we ship.
                   </p>
                 </div>
               </div>

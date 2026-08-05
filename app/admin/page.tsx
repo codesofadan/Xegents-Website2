@@ -237,7 +237,7 @@ function MagnetsTab({ magnets, onChanged, setBanner }: { magnets: Magnet[]; onCh
             </Field>
           </div>
           <div className="sm:col-span-2">
-            <Field label="What's inside — one bullet per line">
+            <Field label="What's inside (one bullet per line)">
               <textarea name="bullets" rows={4} placeholder={"Full source code (Python)\nStep-by-step setup guide\n1-click Google Maps export"} className={inputCls} />
             </Field>
           </div>
@@ -253,7 +253,7 @@ function MagnetsTab({ magnets, onChanged, setBanner }: { magnets: Magnet[]; onCh
 
       {/* List */}
       {magnets.length === 0 && !showForm && (
-        <p className="text-sm text-white/35">No lead magnets yet — create your first one.</p>
+        <p className="text-sm text-white/35">No lead magnets yet. Create your first one.</p>
       )}
       <div className="grid gap-4">
         {magnets.map((m) => (

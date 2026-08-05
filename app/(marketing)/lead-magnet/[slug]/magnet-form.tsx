@@ -95,7 +95,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
   if (mode === "bank") {
     return (
       <div role="status" aria-live="polite" className="glass-card p-6 space-y-5 sm:p-8">
-        <h2 className="text-xl font-black text-white">Almost there — ${price}</h2>
+        <h2 className="text-xl font-black text-white">Almost there: ${price}</h2>
         <p className="text-sm text-white/55 leading-relaxed">
           Transfer <strong className="text-white">${price}</strong> using the details below.
           As soon as we confirm it, <strong className="text-white">{title}</strong> lands in your inbox.
@@ -103,7 +103,7 @@ export function MagnetForm({ slug, title, price }: { slug: string; title: string
         <div className="bg-white/[0.04] border border-white/10 rounded-lg p-5 text-sm text-white/75 leading-relaxed whitespace-pre-line">
           {bankInfo.replace(/ \| /g, "\n")}
         </div>
-        <p className="text-xs text-white/35">Your request is saved — we&apos;ll match your payment to your email automatically.</p>
+        <p className="text-xs text-white/35">Your request is saved. We&apos;ll match your payment to your email automatically.</p>
       </div>
     )
   }

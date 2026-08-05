@@ -488,8 +488,8 @@ export function VideoShowcase() {
           {/* Two strings, one CSS switch. Branching this on client state would
               be a hydration mismatch for a sentence. */}
           <p className="text-sm sm:text-lg text-foreground/60 max-w-2xl mx-auto">
-            <span className="lg:hidden">Step through the AI systems we&apos;ve shipped — see the work, not just the words.</span>
-            <span className="hidden lg:inline">Drag through the AI systems we&apos;ve shipped — see the work, not just the words.</span>
+            <span className="lg:hidden">Step through the AI systems we&apos;ve shipped. See the work, not just the words.</span>
+            <span className="hidden lg:inline">Drag through the AI systems we&apos;ve shipped. See the work, not just the words.</span>
           </p>
         </div>
       </div>

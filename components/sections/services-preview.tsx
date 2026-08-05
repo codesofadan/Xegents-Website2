@@ -39,7 +39,7 @@ const SERVICES: Service[] = [
     title: "AI Audit",
     tagline: "Find exactly where AI saves you money.",
     detail:
-      "We embed with your team, shadow the real workflows, and time every process. Then we show you the maths — what it costs you now, what AI cuts it to, and which fixes pay for themselves first. No slide deck of possibilities; a ranked list with numbers against it.",
+      "We embed with your team, shadow the real workflows, and time every process. Then we show you the maths: what it costs you now, what AI cuts it to, and which fixes pay for themselves first. No slide deck of possibilities; a ranked list with numbers against it.",
     deliverables: [
       "AI Opportunity Map ranked by ROI",
       "Cost-per-process breakdown",
@@ -69,7 +69,7 @@ const SERVICES: Service[] = [
     title: "Custom AI Agents",
     tagline: "GPT-powered agents that work inside your business.",
     detail:
-      "Not generic chatbots. Agents that know your processes, reach your data, and take real actions on their own — scheduling, drafting, qualifying leads, updating the CRM — with a human checkpoint wherever the decision actually matters.",
+      "Not generic chatbots. Agents that know your processes, reach your data, and take real actions on their own: scheduling, drafting, qualifying leads, updating the CRM. There is a human checkpoint wherever the decision actually matters.",
     deliverables: [
       "Agents trained on your own data",
       "Tool-use & API integration",
@@ -84,7 +84,7 @@ const SERVICES: Service[] = [
     title: "System Integration",
     tagline: "Make all your tools talk to each other.",
     detail:
-      "Your CRM, project tool, billing and comms are isolated islands, and your team is the ferry between them. We connect them with AI middleware so the data moves by itself — no copy-paste, no re-keying, no gaps where things quietly go missing.",
+      "Your CRM, project tool, billing and comms are isolated islands, and your team is the ferry between them. We connect them with AI middleware so the data moves by itself. No copy-paste, no re-keying, no gaps where things quietly go missing.",
     deliverables: [
       "CRM ↔ project tool sync",
       "Bidirectional data pipelines",
@@ -150,7 +150,7 @@ export function ServicesPreview() {
             </h2>
           </div>
           <p className="svc-preview-header text-sm text-foreground/45 max-w-xs leading-relaxed">
-            Every engagement starts with the audit — we find the workflows bleeding time, then build the fix.
+            Every engagement starts with the audit: we find the workflows bleeding time, then build the fix.
           </p>
         </div>
 

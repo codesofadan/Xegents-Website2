@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic"
 export const metadata = {
   title: "Free Tools & Resources | Xegents",
   description:
-    "Free (and premium) AI tools, scrapers, and systems from Xegents — grab a lead magnet and see how we build. Delivered straight to your inbox.",
+    "Free (and premium) AI tools, scrapers, and systems from Xegents. Grab a lead magnet and see how we build. Delivered straight to your inbox.",
 }
 
 export default async function LeadMagnetsPage() {
@@ -36,7 +36,7 @@ export default async function LeadMagnetsPage() {
         </div>
 
         {magnets.length === 0 ? (
-          <p className="text-center text-white/35 text-sm">Nothing here yet — check back soon.</p>
+          <p className="text-center text-white/35 text-sm">Nothing here yet. Check back soon.</p>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {magnets.map((m) => (

@@ -264,7 +264,7 @@ export function NumbersDontLie() {
             The Numbers <span className="gradient-text">Don&apos;t Lie.</span>
           </h2>
           <p className="ndl-header mt-4 text-sm text-foreground/45 max-w-xl mx-auto leading-relaxed">
-            Published industry research — not our estimates.
+            Published industry research, not our estimates.
           </p>
         </div>
 
@@ -278,7 +278,7 @@ export function NumbersDontLie() {
 
           <Card
             title="From 55% to 88% in Three Years"
-            sub="AI adoption sat flat near half the market for five years, then broke. Most of the movement happened after 2023 — which is why the cost of waiting is rising, not falling."
+            sub="AI adoption sat flat near half the market for five years, then broke. Most of the movement happened after 2023, which is why the cost of waiting is rising, not falling."
           >
             <AdoptionClimbVisual />
           </Card>

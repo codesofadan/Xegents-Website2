@@ -134,7 +134,7 @@ export function GlobalFootprint() {
             </h2>
           </div>
           <p className="gf-header text-sm text-foreground/45 max-w-xs leading-relaxed">
-            Where Barion Systems already runs — the base Xegents builds on.
+            Where Barion Systems already runs, and the base Xegents builds on.
           </p>
         </div>
 
