@@ -102,7 +102,8 @@ export default function AdminPage() {
         <form onSubmit={login} className="w-full max-w-sm glass-card p-8 space-y-5">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-white">Xegents Admin</h1>
-            <p className="text-sm text-white/40 mt-1">Sign in to continue.</p>
+            <p className="text-sm text-white/40 mt-1">Sign in 
+            .</p>
           </div>
           <input
             type="text"
