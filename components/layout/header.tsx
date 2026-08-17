@@ -81,9 +81,14 @@ export function Header() {
   /* Navigating from the menu used to leave it hanging open over the new page. */
   useEffect(() => { setMenuOpen(false) }, [pathname])
 
-  // Scroll-spy — a section counts as active once it crosses the middle band of
-  // the viewport, which keeps the indicator stable instead of flickering
-  // between neighbours at section boundaries.
+  // Scroll-spy — a section is current while the viewport's vertical center
+  // line falls inside its bounds. With flush sections at most one can contain
+  // the line at a time, so a nav button stays lit until the boundary of the
+  // next section actually crosses the center of the screen. When the line
+  // sits between mapped sections (the un-mapped blocks between Affiliation
+  // and Work), the departing section stays lit — there is never a moment
+  // with no highlight. Only crossing back ABOVE the first section (the Zero
+  // Page) clears it.
   useEffect(() => {
     if (pathname !== "/") {
       setActiveId(null)
@@ -99,15 +104,27 @@ export function Header() {
     const visible = new Set<string>()
     const observer = new IntersectionObserver(
       (entries) => {
+        let lastLeft: string | null = null
         entries.forEach((entry) => {
           if (entry.isIntersecting) visible.add(entry.target.id)
-          else visible.delete(entry.target.id)
+          else { visible.delete(entry.target.id); lastLeft = entry.target.id }
         })
-        // Pick the first in document order so the indicator moves predictably.
+        // Center-line rule: derive the winner from the FULL set after the
+        // batch settles, so an up-scroll crossing (enter + leave in one
+        // batch) can never blank the highlight between the two entries.
         const next = siteConfig.nav.find((item) => visible.has(item.id))
-        setActiveId(next?.id ?? null)
+        if (next) {
+          setActiveId(next.id)
+        } else if (lastLeft && lastLeft !== siteConfig.nav[0].id) {
+          // Line is between mapped sections — keep the departing section
+          // lit until the next one's boundary reaches the center.
+          setActiveId(lastLeft)
+        } else {
+          // Back above the first section — the Zero Page has no nav item.
+          setActiveId(null)
+        }
       },
-      { rootMargin: "-45% 0px -50% 0px" },
+      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
     )
 
     sections.forEach((el) => observer.observe(el))
@@ -190,14 +207,14 @@ export function Header() {
                   {/* width reserved by an invisible bold copy → zero layout shift when the visible one bolds */}
                   <span className="relative inline-block">
                     <span aria-hidden="true" className="invisible font-semibold">{item.label}</span>
-                    <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)] group-data-[active=true]:font-semibold">
+                    <span className="absolute inset-0 font-medium transition-all duration-200 group-hover:font-semibold group-hover:[text-shadow:0_4px_14px_rgba(139,92,246,0.5)] group-data-[active=true]:font-semibold group-data-[active=true]:[text-shadow:0_4px_14px_rgba(139,92,246,0.65)]">
                       {item.label}
                     </span>
                   </span>
-                  {/* purple underline shade grows from the centre on hover, and stays for the active section */}
+                  {/* accent underline grows from the centre on hover, and stays for the active section */}
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-gradient-to-r from-transparent via-accent to-transparent transition-[width] duration-300 ease-out group-hover:w-full group-data-[active=true]:w-full"
+                    className="pointer-events-none absolute -bottom-2 left-1/2 h-[2px] w-0 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_10px_1px] shadow-accent/45 transition-[width] duration-200 ease-out group-hover:w-full group-data-[active=true]:w-full"
                   />
                 </Link>
               )
@@ -249,13 +266,18 @@ export function Header() {
                   onClick={(e) => onNavClick(e, item.id)}
                   data-active={isActive}
                   aria-current={isActive ? "true" : undefined}
-                  className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground data-[active=true]:bg-accent/10 data-[active=true]:text-foreground transition-colors"
+                  className="group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-foreground/85 hover:bg-white/5 hover:text-foreground data-[active=true]:bg-accent/10 data-[active=true]:text-foreground transition-colors"
                 >
-                  {item.label}
+                  <span className="relative inline-block group-data-[active=true]:[text-shadow:0_4px_14px_rgba(139,92,246,0.65)]">
+                    {item.label}
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -bottom-1.5 left-0 h-[2px] w-0 rounded-full bg-accent shadow-[0_0_10px_1px] shadow-accent/45 transition-[width] duration-200 ease-out group-data-[active=true]:w-full"
+                    />
+                  </span>
                   <span
                     aria-hidden="true"
-                    className="h-1.5 w-1.5 rounded-full bg-accent opacity-0 data-[active=true]:opacity-100"
-                    data-active={isActive}
+                    className="h-1.5 w-1.5 rounded-full bg-accent opacity-0 group-data-[active=true]:opacity-100"
                   />
                 </Link>
               )

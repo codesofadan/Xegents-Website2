@@ -71,6 +71,17 @@ const FLAT_TRANSITION = "transform 0.42s cubic-bezier(0.22,1,0.36,1), opacity 0.
  *  Tailwind's lg: (64rem) even if the root font size is not 16px. */
 const FLAT_Q = "(max-width: 63.99rem)"
 
+/** How long a STEPPING carousel (flat layout, reduced motion) sits on a
+ *  video before auto-advancing (ms). The arc never steps — it drifts
+ *  continuously at ROTATE_DEG_PER_SEC instead. */
+const AUTO_ADVANCE_MS = 10000
+
+/** Angular speed of the continuous ring drift — deliberately slight. One
+ *  slot is 22°, so one video passes the centre every ~11s and a full circle
+ *  takes about three minutes. */
+const ROTATE_DEG_PER_SEC = 2
+const ROTATE_SLOTS_PER_SEC = ROTATE_DEG_PER_SEC / 22
+
 /* ────────────────────────────────────────────────────────────────────────────
    CONCAVE ARC — the row curves *toward* the viewer.
 
@@ -276,6 +287,9 @@ export function VideoShowcase() {
      from window here instead would be a hydration mismatch. */
   const [dims,    setDims]    = useState<Dims>(() => computeDims(1280, false, false))
   const flat = dims.mode === "flat"
+  /* The arc can run the continuous ring; flat (mobile) and reduced-motion
+     layouts step discretely instead. */
+  const continuous = dims.mode === "arc" && !dims.reduced
 
   const sectionRef = useRef<HTMLElement>(null)
   /* Nothing is fetched until the section is approached. This is the eleventh
@@ -367,21 +381,187 @@ export function VideoShowcase() {
     })
   }, [N, flat, stopPlayback])
 
+  /* ── CONTINUOUS RING + HOVER-PAUSE ─────────────────────────────────────
+     On the arc the carousel does not step video by video — every card
+     glides along the circumference at one constant, gentle speed, like a
+     ball rolling around a circle. A per-frame painter owns the card
+     transforms and writes them straight to the DOM, so React never
+     re-renders per frame. `pos` is the ring's current slot position (a
+     float); `target` is where it is heading: the idle drift advances
+     `target` at a fixed rate, hovering freezes it, and a manual nudge jumps
+     it by one slot and lets `pos` ease over without stopping. Flat mode and
+     reduced-motion fall back to the discrete auto-step timer below. */
+  const hoverRef = useRef(false)
+  const posRef = useRef(0)
+  const targetRef = useRef(0)
+  const lastTsRef = useRef<number | null>(null)
+  const lastSlotRef = useRef(0)
+  const rafRef = useRef<number | null>(null)
+  const autoTimerRef = useRef<number | null>(null)
+
+  const dimsRef = useRef(dims)
+  dimsRef.current = dims
+  const continuousRef = useRef(continuous)
+  continuousRef.current = continuous
+
+  /* Writes every dynamic style of all twelve cards for one ring position. */
+  const paintCards = useCallback((pos: number) => {
+    const d = dimsRef.current
+    for (let i = 0; i < N; i++) {
+      const el = cardRefs.current[i]
+      if (!el) continue
+      const base = cardLayout(0, wrapRel(i - pos, N), d)
+      el.style.transform = base.transform
+      el.style.opacity = String(base.opacity)
+      el.style.zIndex = String(base.zIndex)
+      el.style.pointerEvents = base.pointerEvents
+      el.style.visibility = base.visibility
+    }
+  }, [N])
+
+  const paintFrame = useCallback((now: number) => {
+    rafRef.current = null
+    /* Clamped so a long backgrounded tab cannot teleport the ring on return. */
+    const dt = lastTsRef.current === null ? 0 : Math.min((now - lastTsRef.current) / 1000, 0.1)
+    lastTsRef.current = now
+
+    // Idle drift — the ring turns at a constant speed until the cursor lands
+    // on the carousel, which freezes the target (an in-flight glide finishes
+    // smoothly, then the painter winds down).
+    if (!hoverRef.current) targetRef.current += ROTATE_SLOTS_PER_SEC * dt
+
+    const pos = posRef.current
+    const target = targetRef.current
+    if (Math.abs(target - pos) > 1e-4) {
+      // Exponential settle — smooth for nudges, invisible lag at drift speed.
+      posRef.current = pos + (target - pos) * Math.min(1, 0.15 * dt * 60)
+    }
+    paintCards(posRef.current)
+
+    // Sync React's `active` slot (dots, play/pause, centre glow) only when
+    // the ring crosses into the next slot — a few times a minute, not per
+    // frame.
+    const slot = mod(Math.round(posRef.current), N)
+    if (slot !== lastSlotRef.current) {
+      lastSlotRef.current = slot
+      setActive(slot)
+    }
+
+    // Keep painting while drifting, or while easing toward a manual target;
+    // stop once a hovered ring has settled.
+    const settled = Math.abs(target - posRef.current) <= 1e-4
+    if (!settled || !hoverRef.current) rafRef.current = requestAnimationFrame(paintFrame)
+  }, [N, paintCards])
+
+  const stopPainter = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+  }, [])
+
+  const startPainter = useCallback(() => {
+    if (rafRef.current !== null) return
+    lastTsRef.current = null
+    rafRef.current = requestAnimationFrame(paintFrame)
+  }, [paintFrame])
+
+  /* Position the ring once before first paint so the continuous mode never
+     shows a frame of transform-less cards stacked at the origin, and switch
+     motion on/off when the layout or visibility changes. */
+  useIsoLayoutEffect(() => {
+    if (continuousRef.current) {
+      paintCards(posRef.current)
+      lastSlotRef.current = mod(Math.round(posRef.current), N)
+      if (armed) startPainter()
+    } else {
+      stopPainter()
+    }
+  }, [paintCards, continuous, armed, startPainter, stopPainter])
+
+  /* Discrete fallback timer — flat layout and reduced motion only. Each
+     auto-step schedules the next one; hovering clears it and leaving
+     restarts a fresh countdown. One timer ref, never two. */
+  const stopAutoRotate = useCallback(() => {
+    if (autoTimerRef.current !== null) {
+      window.clearTimeout(autoTimerRef.current)
+      autoTimerRef.current = null
+    }
+  }, [])
+
+  const startAutoRotate = useCallback(() => {
+    stopAutoRotate()
+    if (hoverRef.current || continuousRef.current) return
+    autoTimerRef.current = window.setTimeout(() => {
+      autoTimerRef.current = null
+      step(1)
+      startAutoRotate()
+    }, AUTO_ADVANCE_MS)
+  }, [step, stopAutoRotate])
+
+  /* The ring drifts once the section is approached; nothing after unmount. */
+  useEffect(() => {
+    if (!armed) return
+    if (continuousRef.current) startPainter()
+    else startAutoRotate()
+    return () => { stopPainter(); stopAutoRotate() }
+  }, [armed, continuous, startPainter, startAutoRotate, stopPainter, stopAutoRotate])
+
+  const onCarouselEnter = () => {
+    hoverRef.current = true
+    stopAutoRotate()
+    // The painter reads the frozen target next frame and winds down.
+  }
+
+  const onCarouselLeave = () => {
+    hoverRef.current = false
+    if (continuousRef.current) startPainter()
+    else startAutoRotate()
+  }
+
+  /* Manual navigation. On the arc a press nudges the moving ring's target by
+     `delta` slots and lets the painter ease to it — the drift never stops
+     and nothing snaps. The stepping modes keep their original discrete
+     step, and every manual interaction restarts the fallback countdown. */
+  const nudge = useCallback((delta: number) => {
+    stopPlayback()
+    if (continuousRef.current) {
+      targetRef.current += delta
+      startPainter()
+    } else {
+      setActive(a => a + delta)
+    }
+    startAutoRotate()
+  }, [stopPlayback, startPainter, startAutoRotate])
+
   /** Each video now lives in two slots — go to whichever is fewer steps away,
-   *  so a dot never sends the arc the long way round. */
+   *  so a dot never sends the ring the long way round. On the arc this moves
+   *  the target and lets the drift ease there; elsewhere it steps the React
+   *  slot directly. */
   const goToIndex = useCallback((videoIdx: number) => {
     stopPlayback()
-    setActive(a => {
-      const cur = mod(a, N)
+    if (continuousRef.current) {
+      const cur = mod(Math.round(posRef.current), N)
       let best = 0
       let bestDist = Infinity
       for (let s = videoIdx; s < N; s += VIDEOS.length) {
         const d = wrapRel(s - cur, N)
         if (Math.abs(d) < bestDist) { bestDist = Math.abs(d); best = d }
       }
-      return a + best
-    })
-  }, [N, stopPlayback])
+      targetRef.current = posRef.current + best
+      startPainter()
+    } else {
+      setActive(a => {
+        const cur = mod(a, N)
+        let best = 0
+        let bestDist = Infinity
+        for (let s = videoIdx; s < N; s += VIDEOS.length) {
+          const d = wrapRel(s - cur, N)
+          if (Math.abs(d) < bestDist) { bestDist = Math.abs(d); best = d }
+        }
+        return a + best
+      })
+    }
+    startAutoRotate()
+  }, [N, stopPlayback, startPainter, startAutoRotate])
 
   const toggleVideo = (i: number) => {
     const el = videoRefs.current[i]
@@ -414,9 +594,16 @@ export function VideoShowcase() {
     if (i === activeIndex) toggleVideo(i)
   }
 
+  /* Shared by both side arrows and the flat-mode row. The stopPropagation
+     is the side arrows' existing guard against reaching the cards below. */
+  const onArrowClick = (e: React.MouseEvent, delta: number) => {
+    e.stopPropagation()
+    nudge(delta)
+  }
+
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft")  { e.preventDefault(); step(-1) }
-    if (e.key === "ArrowRight") { e.preventDefault(); step(1)  }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); nudge(-1) }
+    if (e.key === "ArrowRight") { e.preventDefault(); nudge(1)  }
   }
 
   // The outer pair is scaled ~1.18 by perspective, so the stage needs headroom
@@ -448,280 +635,295 @@ export function VideoShowcase() {
         </div>
       </div>
 
-      {/* ── Controls, flat mode only ──────────────────────────────────────
-          Above the artwork, not over it. At 375px the 48px side buttons sat
-          directly on top of the sliced neighbour cards; here they sit on
-          background and the video keeps all of its own width. */}
-      {flat && (
-        <div className="mb-4 flex items-center justify-center gap-2 px-4">
+      {/* One hover region over the whole carousel — videos, arrows and dots
+          together, so the cursor crossing a gap between them never flaps the
+          auto-rotate countdown. Touch has no hover, so auto-rotate simply
+          keeps running there. */}
+      <div onMouseEnter={onCarouselEnter} onMouseLeave={onCarouselLeave}>
+        {/* ── Controls, flat mode only ──────────────────────────────────────
+            Above the artwork, not over it. At 375px the 48px side buttons sat
+            directly on top of the sliced neighbour cards; here they sit on
+            background and the video keeps all of its own width. */}
+        {flat && (
+          <div className="mb-4 flex items-center justify-center gap-2 px-4">
+            <button
+              type="button"
+              onClick={(e) => onArrowClick(e, -1)}
+              aria-label="Previous video"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <DoubleChevron dir="left" />
+            </button>
+
+            <div className="flex items-center">
+              {VIDEOS.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goToIndex(i)}
+                  aria-label={`Go to video ${i + 1}`}
+                  aria-current={i === activeIndex % VIDEOS.length}
+                  className="grid h-11 w-7 place-items-center"
+                >
+                  <span
+                    className={`block h-1.5 rounded-full transition-all duration-300 ${
+                      i === activeIndex % VIDEOS.length ? "w-5 bg-accent" : "w-1.5 bg-foreground/20"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => onArrowClick(e, 1)}
+              aria-label="Next video"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <DoubleChevron dir="right" />
+            </button>
+          </div>
+        )}
+
+      {/* Stage — full width so side cards have room */}
+        <div
+          className="vs-stage relative w-full select-none"
+          /* The label says "drag to scroll" — the cursor should say it too. */
+          style={{
+            perspective: "2200px",
+            height: stageH,
+            /* No grab cursor, because there is nothing to grab. A grab cursor
+               over artwork that does not drag is a promise the page cannot
+               keep. */
+            cursor: "auto",
+          }}
+          onKeyDown={onKeyDown}
+          tabIndex={0}
+          role="group"
+          aria-roledescription="carousel"
+          /* An attribute cannot be swapped by CSS, and branching it on client
+             state would be a hydration mismatch, so it has to be true at every
+             width — which it is. */
+          aria-label="Video showcase — use the arrows or the arrow keys"
+        >
+        <div
+            className="vs-inner absolute inset-0 flex items-center justify-center"
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            {SLOTS.map((v, i) => {
+              const newRel    = wrapRel(i - active, N)
+              const oldRel    = wrapRel(i - prevActiveRef.current, N)
+              const base      = cardLayout(oldRel, newRel, dims)
+              const isCenter  = flat ? newRel === 0 : i === activeIndex
+              const isPlaying = playing === i
+
+              return (
+                <article
+                  key={i}
+                  ref={el => { cardRefs.current[i] = el }}
+                  className="vs-card"
+                  onClick={() => onCardClick(i)}
+                  onDragStart={(e) => e.preventDefault()}
+                  draggable={false}
+                  aria-label={v.title}
+                  style={{
+                    position:         "absolute",
+                    // laid out SS× large, scaled back down in the transform.
+                    // Flat mode overrides both in CSS — see the style block.
+                    height:           dims.cardH * SS,
+                    width:            cardW * SS,
+// ↓ rounded-sm (4px) — small enough that the scalloped
+                  //   silhouette disappears; sharp enough to look intentional.
+                  borderRadius:     "6px",
+                  overflow:         "hidden",
+                  /* The continuous ring paints these itself every frame, so
+                     React must not hold a competing value for them. */
+                  ...(continuous ? {
+                    transform:        base.transform,
+                    opacity:          base.opacity,
+                    zIndex:           base.zIndex,
+                    pointerEvents:    base.pointerEvents,
+                    visibility:       base.visibility,
+                  } : {}),
+                  /* Continuous mode owns the motion per frame, so its cards
+                     get no CSS transition at all. Only the stepping modes
+                     (flat, reduced) animate via transition — and only the
+                     cards entering or leaving the pair get one. The rest
+                     teleport to their parking slot while hidden, which is
+                     what keeps a three-step dot jump to one screen of travel
+                     instead of a streak. */
+                  transition:       continuous ? "none" : (flat ? (dims.reduced || !base.animates ? "none" : FLAT_TRANSITION) : TRANSITION),
+                    backfaceVisibility: "hidden",
+                    WebkitUserSelect: "none",
+                    userSelect:       "none",
+                    touchAction:      "pan-y",
+                    // Centre card gets a purple ambient glow; side cards a dark shadow
+                    boxShadow: isCenter
+                      ? "0 28px 60px -24px oklch(0.60 0.22 292 / 0.60), 0 8px 24px -12px rgba(0,0,0,0.8)"
+                      : "0 16px 40px -24px rgba(0,0,0,0.85)",
+                  }}
+                >
+                  {/* Brand gradient fallback while video loads */}
+                  <div
+                    className="absolute inset-0"
+                    style={{ background: "linear-gradient(160deg, oklch(0.20 0.10 292 / 0.60), oklch(0.085 0.008 265))" }}
+                  />
+
+                  <video
+                    ref={el => { videoRefs.current[i] = el }}
+                    /* No src at all until the section is approached. A <video>
+                       with no source is an element with no decoder, no buffer
+                       and no network — twelve of those are free; twelve with a
+                       src against a 27MB set are not. */
+                    src={armed ? v.src : undefined}
+                    playsInline
+                    /* Inert until it is actually playing. A <video> under the
+                       cursor otherwise takes the pointer itself and lets the
+                       browser start a native element drag — the ghost image
+                       fights the carousel's own pointer handling, which is the
+                       flicker. The article above it owns click and drag; the
+                       video only takes events back when it has real controls. */
+                    style={{ pointerEvents: isPlaying ? "auto" : "none" }}
+                    onDragStart={(e) => e.preventDefault()}
+                    /* Arc: every card in the visible arc needs metadata to
+                       paint a first frame. Flat: only the two on screen do,
+                       which is seven concurrent range requests down to two.
+                       Metadata is a few KB each; the 27MB of video still only
+                       downloads on play. */
+                    preload={
+                      !armed ? "none"
+                        : flat ? (newRel === 0 ? "metadata" : "none")
+                        : Math.abs(newRel) <= 3 ? "metadata" : "none"
+                    }
+                    controls={isPlaying}
+                    onEnded={onVideoEnded}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    draggable={false}
+                  />
+
+                {/* Depth scrim — sits above the video, below the UI. Its
+                      opacity is a plain inline style now; the ref existed only
+                      so the drag painter could write to it every frame. */}
+                  <div
+                    aria-hidden="true"
+                    className="vs-scrim pointer-events-none absolute inset-0 bg-black"
+                    style={{ opacity: base.dim, transition: "opacity 0.55s ease" }}
+                  />
+
+                  {/* Play overlay — hidden while playing */}
+                  {!isPlaying && (
+                    <>
+                      {/* Legibility scrim — on every card now, since every card
+                          carries a title. Eased back on the unfocused ones so
+                          it doesn't stack with the depth scrim and crush
+                          them. */}
+                      <div
+                        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent transition-opacity duration-500"
+                        style={{ opacity: isCenter ? 1 : 0.7 }}
+                      />
+
+                      {/* Play affordance stays on the focused card only — a
+                          side card doesn't play, it centres. */}
+                      {isCenter && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <span
+                            className="vs-play flex items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_48px_-6px_rgba(147,51,234,0.7)]"
+                            style={{ height: 64 * SS, width: 64 * SS }}
+                          >
+                            <PlayIcon />
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Title on EVERY card. Hierarchy comes from weight and
+                          opacity rather than from hiding it — the caption
+                          stays on the focused card so the arc doesn't turn
+                          into six competing paragraphs. */}
+                      <div
+                        className="vs-caption pointer-events-none absolute bottom-0 left-0 right-0 transition-opacity duration-500"
+                        style={{ padding: 16 * SS, opacity: isCenter ? 1 : 0.78 }}
+                      >
+                        <p
+                          className="vs-title font-semibold text-white leading-tight"
+                          style={{ fontSize: 14 * SS }}
+                        >
+                          {v.title}
+                        </p>
+                        {v.caption && (
+                          <p
+                            className="vs-sub text-white/55 leading-tight transition-opacity duration-500"
+                            style={{ fontSize: 12 * SS, marginTop: 2 * SS, opacity: isCenter ? 1 : 0 }}
+                          >
+                            {v.caption}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+
+        {/* Edge fades — wider and held opaque longer, so the outer cards
+              read as the arc continuing past the frame rather than being
+              sliced. Nothing bleeds past the frame in flat mode, so they
+              go. */}
+          <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 left-0 w-[11%] z-[1200]"
+               style={{ background: "linear-gradient(to right, var(--background) 6%, transparent)" }} />
+          <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 right-0 w-[11%] z-[1200]"
+               style={{ background: "linear-gradient(to left, var(--background) 6%, transparent)" }} />
+
+          {/* Side arrows — sit above the fades, vertically centred on the
+              stage, so the carousel is steerable without reaching for the
+              controls underneath it. Replaced above the stage in flat mode,
+              where they would otherwise sit on top of the artwork. */}
           <button
             type="button"
-            onClick={() => step(-1)}
+            onClick={(e) => onArrowClick(e, -1)}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Previous video"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="vs-side-arrow absolute left-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:left-6 sm:h-14 sm:w-14"
           >
             <DoubleChevron dir="left" />
           </button>
-
-          <div className="flex items-center">
-            {VIDEOS.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => goToIndex(i)}
-                aria-label={`Go to video ${i + 1}`}
-                aria-current={i === activeIndex % VIDEOS.length}
-                className="grid h-11 w-7 place-items-center"
-              >
-                <span
-                  className={`block h-1.5 rounded-full transition-all duration-300 ${
-                    i === activeIndex % VIDEOS.length ? "w-5 bg-accent" : "w-1.5 bg-foreground/20"
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-
           <button
             type="button"
-            onClick={() => step(1)}
+            onClick={(e) => onArrowClick(e, 1)}
+            onPointerDown={(e) => e.stopPropagation()}
             aria-label="Next video"
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/12 bg-background/95 text-accent transition-colors hover:border-accent/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="vs-side-arrow absolute right-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:right-6 sm:h-14 sm:w-14"
           >
             <DoubleChevron dir="right" />
           </button>
         </div>
-      )}
 
-      {/* Stage — full width so side cards have room */}
-      <div
-        className="vs-stage relative w-full select-none"
-        /* The label says "drag to scroll" — the cursor should say it too. */
-        style={{
-          perspective: "2200px",
-          height: stageH,
-          /* No grab cursor, because there is nothing to grab. A grab cursor
-             over artwork that does not drag is a promise the page cannot
-             keep. */
-          cursor: "auto",
-        }}
-        onKeyDown={onKeyDown}
-        tabIndex={0}
-        role="group"
-        aria-roledescription="carousel"
-        /* An attribute cannot be swapped by CSS, and branching it on client
-           state would be a hydration mismatch, so it has to be true at every
-           width — which it is. */
-        aria-label="Video showcase — use the arrows or the arrow keys"
-      >
-        <div
-          className="vs-inner absolute inset-0 flex items-center justify-center"
-          style={{ transformStyle: "preserve-3d" }}
-        >
-          {SLOTS.map((v, i) => {
-            const newRel    = wrapRel(i - active, N)
-            const oldRel    = wrapRel(i - prevActiveRef.current, N)
-            const base      = cardLayout(oldRel, newRel, dims)
-            const isCenter  = flat ? newRel === 0 : i === activeIndex
-            const isPlaying = playing === i
+        {/* Bottom control row removed — the arrows live on the sides of the
+            stage now, and a duplicate pair underneath was both redundant and
+            sitting close enough to the cards to compete for the pointer. */}
 
-            return (
-              <article
-                key={i}
-                ref={el => { cardRefs.current[i] = el }}
-                className="vs-card"
-                onClick={() => onCardClick(i)}
-                onDragStart={(e) => e.preventDefault()}
-                draggable={false}
-                aria-label={v.title}
-                style={{
-                  position:         "absolute",
-                  // laid out SS× large, scaled back down in the transform.
-                  // Flat mode overrides both in CSS — see the style block.
-                  height:           dims.cardH * SS,
-                  width:            cardW * SS,
-                  // ↓ rounded-sm (4px) — small enough that the scalloped
-                  //   silhouette disappears; sharp enough to look intentional.
-                  borderRadius:     "6px",
-                  overflow:         "hidden",
-                  transform:        base.transform,
-                  opacity:          base.opacity,
-                  zIndex:           base.zIndex,
-                  pointerEvents:    base.pointerEvents,
-                  visibility:       base.visibility,
-                  /* Only the cards entering or leaving the pair get a
-                     transition. The rest teleport to their parking slot while
-                     hidden, which is what keeps a three-step dot jump to one
-                     screen of travel instead of a streak. */
-                  transition:       flat ? (dims.reduced || !base.animates ? "none" : FLAT_TRANSITION) : TRANSITION,
-                  backfaceVisibility: "hidden",
-                  WebkitUserSelect: "none",
-                  userSelect:       "none",
-                  touchAction:      "pan-y",
-                  // Centre card gets a purple ambient glow; side cards a dark shadow
-                  boxShadow: isCenter
-                    ? "0 28px 60px -24px oklch(0.60 0.22 292 / 0.60), 0 8px 24px -12px rgba(0,0,0,0.8)"
-                    : "0 16px 40px -24px rgba(0,0,0,0.85)",
-                }}
-              >
-                {/* Brand gradient fallback while video loads */}
-                <div
-                  className="absolute inset-0"
-                  style={{ background: "linear-gradient(160deg, oklch(0.20 0.10 292 / 0.60), oklch(0.085 0.008 265))" }}
-                />
-
-                <video
-                  ref={el => { videoRefs.current[i] = el }}
-                  /* No src at all until the section is approached. A <video>
-                     with no source is an element with no decoder, no buffer
-                     and no network — twelve of those are free; twelve with a
-                     src against a 27MB set are not. */
-                  src={armed ? v.src : undefined}
-                  playsInline
-                  /* Inert until it is actually playing. A <video> under the
-                     cursor otherwise takes the pointer itself and lets the
-                     browser start a native element drag — the ghost image
-                     fights the carousel's own pointer handling, which is the
-                     flicker. The article above it owns click and drag; the
-                     video only takes events back when it has real controls. */
-                  style={{ pointerEvents: isPlaying ? "auto" : "none" }}
-                  onDragStart={(e) => e.preventDefault()}
-                  /* Arc: every card in the visible arc needs metadata to paint
-                     a first frame. Flat: only the two on screen do, which is
-                     seven concurrent range requests down to two.
-                     Metadata is a few KB each; the 27MB of video still only
-                     downloads on play. */
-                  preload={
-                    !armed ? "none"
-                      : flat ? (newRel === 0 ? "metadata" : "none")
-                      : Math.abs(newRel) <= 3 ? "metadata" : "none"
-                  }
-                  controls={isPlaying}
-                  onEnded={onVideoEnded}
-                  className="absolute inset-0 h-full w-full object-cover"
-                  draggable={false}
-                />
-
-                {/* Depth scrim — sits above the video, below the UI. Its
-                    opacity is a plain inline style now; the ref existed only
-                    so the drag painter could write to it every frame. */}
-                <div
-                  aria-hidden="true"
-                  className="vs-scrim pointer-events-none absolute inset-0 bg-black"
-                  style={{ opacity: base.dim, transition: "opacity 0.55s ease" }}
-                />
-
-                {/* Play overlay — hidden while playing */}
-                {!isPlaying && (
-                  <>
-                    {/* Legibility scrim — on every card now, since every card
-                        carries a title. Eased back on the unfocused ones so it
-                        doesn't stack with the depth scrim and crush them. */}
-                    <div
-                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent transition-opacity duration-500"
-                      style={{ opacity: isCenter ? 1 : 0.7 }}
-                    />
-
-                    {/* Play affordance stays on the focused card only — a side
-                        card doesn't play, it centres. */}
-                    {isCenter && (
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <span
-                          className="vs-play flex items-center justify-center rounded-full bg-accent/90 text-white shadow-[0_0_48px_-6px_rgba(147,51,234,0.7)]"
-                          style={{ height: 64 * SS, width: 64 * SS }}
-                        >
-                          <PlayIcon />
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Title on EVERY card. Hierarchy comes from weight and
-                        opacity rather than from hiding it — the caption stays
-                        on the focused card so the arc doesn't turn into six
-                        competing paragraphs. */}
-                    <div
-                      className="vs-caption pointer-events-none absolute bottom-0 left-0 right-0 transition-opacity duration-500"
-                      style={{ padding: 16 * SS, opacity: isCenter ? 1 : 0.78 }}
-                    >
-                      <p
-                        className="vs-title font-semibold text-white leading-tight"
-                        style={{ fontSize: 14 * SS }}
-                      >
-                        {v.title}
-                      </p>
-                      {v.caption && (
-                        <p
-                          className="vs-sub text-white/55 leading-tight transition-opacity duration-500"
-                          style={{ fontSize: 12 * SS, marginTop: 2 * SS, opacity: isCenter ? 1 : 0 }}
-                        >
-                          {v.caption}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
-              </article>
-            )
-          })}
+        {/* Dot indicators — the dot stays small, the hit area does not. A
+            bare 6×6 button is unusable on a phone; each control is 44px tall
+            with the mark centred inside it. */}
+        <div className="vs-dots mt-1 flex items-center justify-center">
+          {VIDEOS.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goToIndex(i)}
+              aria-label={`Go to video ${i + 1}`}
+              /* twelve slots, six videos — the dot tracks the video, not the slot */
+              aria-current={i === activeIndex % VIDEOS.length}
+              className="grid h-11 w-8 place-items-center"
+            >
+              <span
+                className={`block h-1.5 rounded-full transition-all duration-300 ${
+                  i === activeIndex % VIDEOS.length ? "w-6 bg-accent" : "w-1.5 bg-foreground/20"
+                }`}
+              />
+            </button>
+          ))}
         </div>
-
-        {/* Edge fades — wider and held opaque longer, so the outer cards read
-            as the arc continuing past the frame rather than being sliced.
-            Nothing bleeds past the frame in flat mode, so they go. */}
-        <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 left-0 w-[11%] z-[1200]"
-             style={{ background: "linear-gradient(to right, var(--background) 6%, transparent)" }} />
-        <div aria-hidden className="vs-fade pointer-events-none absolute inset-y-0 right-0 w-[11%] z-[1200]"
-             style={{ background: "linear-gradient(to left, var(--background) 6%, transparent)" }} />
-
-        {/* Side arrows — sit above the fades, vertically centred on the stage,
-            so the carousel is steerable without reaching for the controls
-            underneath it. Replaced above the stage in flat mode, where they
-            would otherwise sit on top of the artwork. */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); step(-1) }}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Previous video"
-          className="vs-side-arrow absolute left-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:left-6 sm:h-14 sm:w-14"
-        >
-          <DoubleChevron dir="left" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); step(1) }}
-          onPointerDown={(e) => e.stopPropagation()}
-          aria-label="Next video"
-          className="vs-side-arrow absolute right-3 top-1/2 z-[1300] grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/12 bg-background/70 text-accent backdrop-blur-md transition-all hover:border-accent/45 hover:bg-background/90 sm:right-6 sm:h-14 sm:w-14"
-        >
-          <DoubleChevron dir="right" />
-        </button>
-      </div>
-
-      {/* Bottom control row removed — the arrows live on the sides of the
-          stage now, and a duplicate pair underneath was both redundant and
-          sitting close enough to the cards to compete for the pointer. */}
-
-      {/* Dot indicators — the dot stays small, the hit area does not. A bare
-          6×6 button is unusable on a phone; each control is 44px tall with the
-          mark centred inside it. */}
-      <div className="vs-dots mt-1 flex items-center justify-center">
-        {VIDEOS.map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => goToIndex(i)}
-            aria-label={`Go to video ${i + 1}`}
-            /* twelve slots, six videos — the dot tracks the video, not the slot */
-            aria-current={i === activeIndex % VIDEOS.length}
-            className="grid h-11 w-8 place-items-center"
-          >
-            <span
-              className={`block h-1.5 rounded-full transition-all duration-300 ${
-                i === activeIndex % VIDEOS.length ? "w-6 bg-accent" : "w-1.5 bg-foreground/20"
-              }`}
-            />
-          </button>
-        ))}
       </div>
 
       <style>{`
