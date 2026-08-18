@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CalendlyInline } from "@/components/common/calendly-widget"
+import { CalInline } from "@/components/common/cal-widget"
 
 export function FinalCTA() {
   const [inView, setInView] = useState(false)
@@ -41,7 +41,7 @@ export function FinalCTA() {
             className="glass-card p-3 sm:p-5"
             style={{ transitionDelay: inView ? "0.15s" : "0s" }}
           >
-            <CalendlyInline />
+            <CalInline />
           </div>
         </div>
       </div>
