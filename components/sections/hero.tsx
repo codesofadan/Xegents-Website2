@@ -92,7 +92,7 @@ export function Hero() {
 
       {/* Three.js aurora background — brand purple, fades into the page below */}
       <div className="pointer-events-none absolute inset-0 z-0 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]">
-        <AuroraBackground intensity={0.9} />
+        <AuroraBackground intensity={1.15} />
       </div>
 
       {/* Soft scrim so the headline stays crisp over the aurora */}
