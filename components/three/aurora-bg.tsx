@@ -39,7 +39,6 @@ const FRAG = /* glsl */ `
 
   uniform vec2  uResolution;
   uniform float uTime;
-  uniform vec2  uPointer;     // cursor in UV space 0..1 (y up), smoothed
   uniform float uIntensity;   // overall strength
 
   // Brand ramp (deep navy -> indigo -> brand violet -> light violet)
@@ -94,13 +93,6 @@ const FRAG = /* glsl */ `
     vec2 uv = vUv;
     vec2 p = (uv - 0.5) * vec2(aspect, 1.0);
 
-    // cursor, mapped into the SAME aspect-corrected space as p, so the
-    // spotlight lands exactly under the pointer regardless of screen ratio.
-    vec2 mp = (uPointer - 0.5) * vec2(aspect, 1.0);
-
-    // gentle pointer parallax (drifts the whole field toward the cursor)
-    p += (uPointer - 0.5) * 0.10;
-
     float t = uTime * 0.03;
 
     // low-frequency, domain-warped clouds → soft calm aurora
@@ -109,15 +101,6 @@ const FRAG = /* glsl */ `
     float field = fbm(p * 1.1 + vec2(w2, w1) * 0.6 + t * 0.3);
     field = field * 0.5 + 0.5;                  // -> 0..1
     field = smoothstep(0.30, 0.88, field);      // low contrast, no hard veins
-
-    // --- cursor spotlight ---------------------------------------------------
-    // radial falloff around the pointer: a wide soft halo + a tight hot core.
-    float d        = length(p - mp);
-    float spot     = smoothstep(0.62, 0.0, d);  // soft halo
-    float spotCore = smoothstep(0.24, 0.0, d);  // bright center
-
-    // the aurora wisps light up where the cursor hovers (interactive energy)
-    field = clamp(field + spot * 0.38, 0.0, 1.0);
 
     // brand-locked ramp — a touch more violet than before for prominence
     vec3 col = mix(BASE, C1, field);
@@ -130,12 +113,6 @@ const FRAG = /* glsl */ `
     float mask = topGlow * bottomFade * 0.82;   // more presence than before
 
     col = mix(BASE, col, mask * uIntensity);
-
-    // additive violet bloom that follows the cursor — independent of the mask
-    // so the halo still reads over the darker, calmer regions of the field.
-    vec3 glowCol = mix(C2, C3, 0.45);
-    col += glowCol * spot     * 0.30 * uIntensity;
-    col += C3      * spotCore * 0.22 * uIntensity;
 
     // vignette
     float vig = smoothstep(1.3, 0.4, length((uv - 0.5) * vec2(aspect, 1.0)));
@@ -203,8 +180,6 @@ export function AuroraBackground({
     const uniforms = {
       uResolution: { value: new THREE.Vector2(1, 1) },
       uTime: { value: 0 },
-      // start centred so the cursor glow rests mid-top before the first move
-      uPointer: { value: new THREE.Vector2(0.5, 0.5) },
       uIntensity: { value: intensity },
     }
 
@@ -219,33 +194,13 @@ export function AuroraBackground({
     const mesh = new THREE.Mesh(geometry, material)
     scene.add(mesh)
 
-    // Cached container rect for mapping the cursor into the canvas — refreshed
-    // on scroll/resize so pointermove stays allocation-free and stays correct
-    // as the hero moves. Declared before setSize(), which refreshes it too.
-    let rect = container.getBoundingClientRect()
-    const refreshRect = () => { rect = container.getBoundingClientRect() }
-
     const setSize = () => {
       const w = container.clientWidth || 1
       const h = container.clientHeight || 1
       renderer.setSize(w, h, false)
       uniforms.uResolution.value.set(w * dpr, h * dpr)
-      refreshRect()
     }
     setSize()
-
-    // Cursor spotlight target, in the canvas's own UV space (0..1, y up) — so
-    // the glow sits exactly under the pointer, not offset by window geometry.
-    const pointerTarget = new THREE.Vector2(0.5, 0.5)
-    const onPointer = (e: PointerEvent) => {
-      const x = (e.clientX - rect.left) / Math.max(rect.width, 1)
-      const y = (e.clientY - rect.top) / Math.max(rect.height, 1)
-      pointerTarget.set(x, 1.0 - y) // flip y: screen is top-down, UV is bottom-up
-    }
-    if (!reduceMotion) {
-      window.addEventListener("pointermove", onPointer, { passive: true })
-      window.addEventListener("scroll", refreshRect, { passive: true })
-    }
 
     const ro = new ResizeObserver(setSize)
     ro.observe(container)
@@ -264,9 +219,6 @@ export function AuroraBackground({
       const dt = Math.min((now - last) / 1000, 0.05)
       last = now
       uniforms.uTime.value += dt
-      // ease the spotlight toward the cursor — quick enough to feel like it
-      // follows, slow enough that it glides rather than snaps.
-      uniforms.uPointer.value.lerp(pointerTarget, 0.09)
       renderFrame()
       frameId = requestAnimationFrame(loop)
     }
@@ -311,8 +263,6 @@ export function AuroraBackground({
     return () => {
       stop()
       document.removeEventListener("visibilitychange", onVisibility)
-      window.removeEventListener("pointermove", onPointer)
-      window.removeEventListener("scroll", refreshRect)
       io.disconnect()
       ro.disconnect()
       geometry.dispose()
