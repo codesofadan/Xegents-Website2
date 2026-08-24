@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { gsap, ScrollTrigger } from "@/lib/gsap"
 import { useRevealRail } from "@/hooks/use-reveal-rail"
@@ -96,7 +96,13 @@ const SERVICES: Service[] = [
 
 export function ServicesPreview() {
   const sectionRef = useRef<HTMLElement>(null)
-  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
+  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail("(min-width: 1024px)", "0")
+  const [autoplayPaused, setAutoplayPaused] = useState(false)
+  const autoplayRemainingRef = useRef(10000)
+  const autoplayStartedAtRef = useRef(Date.now())
+  const autoplayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pointerInsideRef = useRef(false)
+  const focusInsideRef = useRef(false)
   const drawerRef = useRef<HTMLDivElement>(null)
   /* Points at whichever card is open. It is refs[0] for useDismiss, which
      watches it with an IntersectionObserver — so scrolling the open card off
@@ -115,6 +121,40 @@ export function ServicesPreview() {
   useCloseAfterRead(isOpen, openPanelRef, () => setActiveId(null))
 
   const active = activeId !== null ? SERVICES[Number(activeId) % SERVICES.length] : null
+
+  const syncInteractionPause = () => {
+    setAutoplayPaused(document.hidden || pointerInsideRef.current || focusInsideRef.current)
+  }
+
+  useEffect(() => {
+    if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current)
+    if (autoplayPaused || activeId === null || document.hidden) return
+
+    autoplayStartedAtRef.current = Date.now()
+    autoplayTimerRef.current = setTimeout(() => {
+      const currentIndex = Number(activeId)
+      setActiveId(String((currentIndex + 1) % SERVICES.length))
+      autoplayRemainingRef.current = 10000
+    }, autoplayRemainingRef.current)
+
+    return () => {
+      if (autoplayTimerRef.current) clearTimeout(autoplayTimerRef.current)
+    }
+  }, [activeId, autoplayPaused, setActiveId])
+
+  useEffect(() => {
+    if (!autoplayPaused) return
+    autoplayRemainingRef.current = Math.max(
+      0,
+      autoplayRemainingRef.current - (Date.now() - autoplayStartedAtRef.current),
+    )
+  }, [autoplayPaused])
+
+  useEffect(() => {
+    const syncVisibility = () => syncInteractionPause()
+    document.addEventListener("visibilitychange", syncVisibility)
+    return () => document.removeEventListener("visibilitychange", syncVisibility)
+  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -159,7 +199,18 @@ export function ServicesPreview() {
         <div
           ref={gridRef}
           className="svc-viewport relative"
-          onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
+          onPointerEnter={(e) => {
+            if (e.pointerType !== "touch") {
+              pointerInsideRef.current = true
+              syncInteractionPause()
+            }
+          }}
+          onPointerLeave={(e) => {
+            if (e.pointerType !== "touch") {
+              pointerInsideRef.current = false
+              syncInteractionPause()
+            }
+          }}
         >
           {/* The drawer's own hint line lives inside the drawer, which is
               display:none below lg — so the stacked layout needs its own.
@@ -183,8 +234,20 @@ export function ServicesPreview() {
                     type="button"
                     data-reveal-id={String(i)}
                     ref={isActive ? openCardRef : undefined}
-                    onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
-                    onFocus={() => setActiveId(String(i))}
+                    onPointerEnter={(e) => {
+                      if (e.pointerType !== "touch") setActiveId(String(i))
+                    }}
+                    onFocus={() => {
+                      focusInsideRef.current = true
+                      syncInteractionPause()
+                      setActiveId(String(i))
+                    }}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) {
+                        focusInsideRef.current = false
+                        syncInteractionPause()
+                      }
+                    }}
                     /* Tap toggles. onBlur used to close here, which broke the
                        keyboard path entirely: tabbing INTO the panel to reach its
                        link blurred the card and shut the panel on the way. */

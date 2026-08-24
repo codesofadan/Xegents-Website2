@@ -102,10 +102,7 @@ export function Footer() {
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 lg:gap-16">
             {/* Left section */}
             <div className={`space-y-3 flex-shrink-0 transition-all duration-700 ${reveal}`}>
-              {/* Both marks, with the relationship stated rather than implied.
-                  A hairline between them and a smaller Barion lockup under its
-                  own label — side by side at the same size would read as a
-                  partnership, which is not what this is. */}
+                {/* Both company marks share the same visual height. */}
               <div className="flex items-center gap-4">
                 <a
                   href="https://xegents.com"
@@ -137,24 +134,14 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Barion Systems — opens barionsystems.com in a new tab"
-                  className="flex flex-col gap-1 transition-opacity hover:opacity-80"
+                  className="inline-block transition-opacity hover:opacity-80"
                 >
-                  <span className="text-[9px] font-medium uppercase tracking-[0.18em] text-foreground/40">
-                    Owned by
-                  </span>
-                  {/* Barion's own white-knockout mark, 109x64 native — rendered
-                      at 32px tall so it is never upscaled.
-                      self-start matters: the parent is a flex COLUMN, so the
-                      default stretch runs along the width and pulls the image
-                      out to the label's width, which had it rendering 47px
-                      tall — near enough to the 48px Xegents mark to read as an
-                      equal partner rather than a parent. */}
                   <img
                     src="/barion-systems-logo.png"
                     alt="Barion Systems"
                     width={109}
                     height={64}
-                    className="h-8 w-auto max-w-none self-start object-contain"
+                    className="h-12 w-auto object-contain"
                     loading="lazy"
                   />
                 </a>
@@ -208,9 +195,6 @@ export function Footer() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-center text-xs text-foreground/70 sm:text-left">
               &copy; {new Date().getFullYear()} Xegents. All rights reserved.
-              {/* Its own line on a phone, inline on a wide screen — a middot
-                  between two sentences that have wrapped apart reads as a
-                  stray character. */}
               <span className="block sm:ml-1 sm:inline">
                 <span aria-hidden="true" className="hidden sm:inline">·</span>{" "}
                 Owned by{" "}

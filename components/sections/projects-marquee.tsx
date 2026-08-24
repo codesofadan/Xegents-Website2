@@ -55,7 +55,16 @@ const TRACK = [...projects, ...projects]
 
 export function ProjectsMarquee() {
   const sectionRef = useRef<HTMLElement>(null)
-  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail()
+  const { activeId, setActiveId, gridRef, rail, isOpen } = useRevealRail("(min-width: 1024px)", "0")
+  const interactionPausedRef = useRef(false)
+  const drawerHoveredRef = useRef(false)
+  const viewportHoveredRef = useRef(false)
+  const cardHoveredRef = useRef(false)
+  const hoveredCardIdRef = useRef<string | null>(null)
+  const activeIdRef = useRef(activeId)
+  const focusWithinRef = useRef(false)
+
+  activeIdRef.current = activeId
 
   // activeId is the slot index — each project appears twice in the track and
   // the rail has to point at the copy actually under the cursor.
@@ -87,6 +96,55 @@ export function ProjectsMarquee() {
      on screen at once, then lets the next scroll close it. */
   useDismiss(isOpen, () => setActiveId(null), [openCardRef, gridRef, drawerRef], { closeOnScrollAway: false })
   useCloseAfterRead(isOpen, openPanelRef, () => setActiveId(null))
+
+  const releaseInteraction = () => {
+    interactionPausedRef.current = drawerHoveredRef.current || viewportHoveredRef.current || cardHoveredRef.current || focusWithinRef.current
+  }
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)")
+    let animationFrame = 0
+
+    const trackCenterCard = () => {
+      if (mediaQuery.matches) {
+        const viewport = gridRef.current
+        if (viewport) {
+          if (hoveredCardIdRef.current !== null) {
+            if (hoveredCardIdRef.current !== activeIdRef.current) setActiveId(hoveredCardIdRef.current)
+          } else if (!interactionPausedRef.current) {
+            const viewportCenter = viewport.getBoundingClientRect().left + viewport.offsetWidth / 2
+            const cards = viewport.querySelectorAll<HTMLElement>("[data-reveal-id]")
+            let closestId: string | null = null
+            let closestDistance = Number.POSITIVE_INFINITY
+
+            cards.forEach((card) => {
+              const bounds = card.getBoundingClientRect()
+              const distance = Math.abs(bounds.left + bounds.width / 2 - viewportCenter)
+              if (distance < closestDistance) {
+                closestDistance = distance
+                closestId = card.dataset.revealId ?? null
+              }
+            })
+
+            if (closestId !== null && closestId !== activeIdRef.current) setActiveId(closestId)
+          }
+        }
+      }
+      animationFrame = requestAnimationFrame(trackCenterCard)
+    }
+
+    const syncMedia = () => {
+      if (!mediaQuery.matches) setActiveId("0")
+    }
+
+    syncMedia()
+    mediaQuery.addEventListener("change", syncMedia)
+    animationFrame = requestAnimationFrame(trackCenterCard)
+    return () => {
+      cancelAnimationFrame(animationFrame)
+      mediaQuery.removeEventListener("change", syncMedia)
+    }
+  }, [gridRef, setActiveId])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -145,8 +203,29 @@ export function ProjectsMarquee() {
           ref={gridRef}
           className="work-viewport relative overflow-hidden"
           data-anim={inView ? "on" : "off"}
-          data-hold={isOpen ? "true" : "false"}
-          onPointerLeave={(e) => { if (e.pointerType !== "touch") setActiveId(null) }}
+          onPointerEnter={(e) => {
+            if (e.pointerType !== "touch") {
+              viewportHoveredRef.current = true
+              releaseInteraction()
+            }
+          }}
+          onPointerLeave={(e) => {
+            if (e.pointerType !== "touch") {
+              viewportHoveredRef.current = false
+              releaseInteraction()
+            }
+          }}
+          onFocusCapture={() => {
+            focusWithinRef.current = true
+            releaseInteraction()
+          }}
+          onBlurCapture={(e) => {
+            const nextTarget = e.relatedTarget as Node | null
+            if (!gridRef.current?.contains(nextTarget) && !drawerRef.current?.contains(nextTarget)) {
+              focusWithinRef.current = false
+              releaseInteraction()
+            }
+          }}
         >
           <div className="work-track flex w-max gap-4 sm:gap-5">
           {TRACK.map((p, i) => {
@@ -161,12 +240,32 @@ export function ProjectsMarquee() {
                 ref={isActive ? openCardRef : undefined}
                 aria-hidden={isDupe}
                 tabIndex={isDupe ? -1 : 0}
-                onPointerEnter={(e) => { if (e.pointerType !== "touch") setActiveId(String(i)) }}
+                onPointerEnter={(e) => {
+                  if (e.pointerType !== "touch") {
+                    cardHoveredRef.current = true
+                    hoveredCardIdRef.current = String(i)
+                    releaseInteraction()
+                    setActiveId(String(i))
+                  }
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType !== "touch") {
+                    cardHoveredRef.current = false
+                    hoveredCardIdRef.current = null
+                    releaseInteraction()
+                  }
+                }}
                 onFocus={() => setActiveId(String(i))}
-                /* Tap toggles. onBlur used to close here, which broke the
-                   keyboard path entirely: tabbing INTO the panel to reach its
-                   link blurred the card and shut the panel on the way. */
-                onClick={() => setActiveId(activeId === String(i) ? null : String(i))}
+                /* Mobile taps toggle the stacked panel. Desktop clicks are
+                   idempotent because hover already selected the card; clearing
+                   it here would unmount the drawer during the click. */
+                onClick={() => {
+                  if (window.matchMedia("(min-width: 1024px)").matches) {
+                    setActiveId(String(i))
+                  } else {
+                    setActiveId(activeId === String(i) ? null : String(i))
+                  }
+                }}
                 aria-expanded={isActive}
                 aria-controls={`work-panel-${i}`}
                 data-active={isActive}
@@ -280,6 +379,29 @@ export function ProjectsMarquee() {
           ref={drawerRef}
           role="region"
           aria-live="polite"
+          onPointerEnter={(e) => {
+            if (e.pointerType !== "touch") {
+              drawerHoveredRef.current = true
+              releaseInteraction()
+            }
+          }}
+          onPointerLeave={(e) => {
+            if (e.pointerType !== "touch") {
+              drawerHoveredRef.current = false
+              releaseInteraction()
+            }
+          }}
+          onFocusCapture={() => {
+            focusWithinRef.current = true
+            releaseInteraction()
+          }}
+          onBlurCapture={(e) => {
+            const nextTarget = e.relatedTarget as Node | null
+            if (!gridRef.current?.contains(nextTarget) && !drawerRef.current?.contains(nextTarget)) {
+              focusWithinRef.current = false
+              releaseInteraction()
+            }
+          }}
           className="reveal-drawer relative mt-5 hidden overflow-hidden rounded-xl border border-border lg:block"
         >
           <span
@@ -295,7 +417,7 @@ export function ProjectsMarquee() {
 
           <div className="flex min-h-14 items-center px-7 sm:px-9 lg:px-10">
             {active ? (
-              <p key={active.id} className="reveal-in text-[11px] font-semibold uppercase tracking-widest text-accent">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-accent">
                 {active.number} — {active.industry}
               </p>
             ) : (
@@ -313,7 +435,7 @@ export function ProjectsMarquee() {
           >
             <div className="overflow-hidden">
               {active && detail && (
-                <div key={active.id} className="reveal-in grid gap-8 px-7 pb-8 sm:px-9 sm:pb-9 lg:grid-cols-[1fr_1.35fr] lg:gap-14 lg:px-10 lg:pb-10">
+                <div className="grid gap-8 px-7 pb-8 sm:px-9 sm:pb-9 lg:grid-cols-[1fr_1.35fr] lg:gap-14 lg:px-10 lg:pb-10">
                   <div>
                     <p className="text-2xl sm:text-3xl font-black tracking-tighter leading-none text-white">
                       {active.name}
@@ -393,13 +515,10 @@ export function ProjectsMarquee() {
         }
         @media (min-width: 640px) { .work-track { --work-gap: 20px; } }
 
-        /* Declared after the shorthand so they actually win.
-           data-hold is the touch path: a tap opens the panel and stops the
-           track, so the card you are reading about stays where you tapped it.
-           Without it the rail measured once and the track slid out from under
-           it within a second. */
-        .work-viewport[data-hold="true"] .work-track,
-        .work-viewport[data-anim="off"] .work-track { animation-play-state: paused; }
+          /* The desktop center tracker follows the moving track. On narrow
+            layouts the track itself is disabled below, so opening a panel does
+            not need a separate hold state. */
+          .work-viewport[data-anim="off"] .work-track { animation-play-state: paused; }
         @media (hover: hover) and (pointer: fine) {
           .work-viewport:hover .work-track { animation-play-state: paused; }
         }
